@@ -472,9 +472,10 @@ ssh ubuntu@runner01.homelab.bcochofel.com \
 - **Self-update on:** the `github_runner` role installs a pinned,
   checksum-verified version once; the runner updates itself after that,
   since GitHub stops sending jobs to runners it considers too old.
-- **Telemetry:** its Elastic Agent is in `homelab-core` like every VM; its
-  own Fleet policy (no Docker integration, the runner's `_diag` logs) is
-  homelab-proxmox-workloads' to define.
+- **Telemetry:** its Elastic Agent is in its own Fleet policy,
+  `github-runner` (defined in homelab-proxmox-workloads): host metrics and
+  logs, and the runner's `_diag` logs (dataset `github_runner.diag`), with
+  no Docker integration ([`docs/ANSIBLE.md`](ANSIBLE.md#elastic-agent)).
 
 ### Why *All workflows*
 

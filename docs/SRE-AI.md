@@ -417,9 +417,12 @@ and the agent reads the result. Apply stays human-only.
       short-retention artifact (`docs/SETUP.md`). `tfplan` is never
       uploaded.
 - [ ] Runner telemetry: Elastic Agent enrolled (A9) and the runner's
-      `_diag` logs shipped, feeding the audit trail (A2). Enrolled, in
-      `homelab-core`; still to do in workloads: its own Fleet policy (no
-      Docker integration) with the `_diag` logs.
+      `_diag` logs shipped, feeding the audit trail (A2). Its own Fleet
+      policy, `github-runner` (no Docker integration, the `_diag` logs as
+      `github_runner.diag`): core sets it in `group_vars/github_runner.yml`,
+      workloads defines it in `stacks/elastic/fleet`. Done once `runner01`
+      is reassigned to it and healthy in Fleet, with its `_diag` logs in
+      Kibana.
 - [ ] Done when: a PR touching `terraform/` and `ansible/` gets a plan and
       a check recap after the human approves, a fork PR never reaches the
       runner, and `boundary:check` / `runner:check` pass. All but the fork

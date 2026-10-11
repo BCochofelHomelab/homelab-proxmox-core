@@ -1,0 +1,11 @@
+---
+# ============================================================================
+# Hand-authored. The CI dry-run runner (runner01; docs/SETUP.md, stage 8).
+# ============================================================================
+
+# homelab-proxmox-workloads' agent policy for the runner (stacks/elastic/fleet):
+# host metrics and logs, and the runner's _diag logs; no Docker integration,
+# since the runner has no Docker. Its token is
+# fleet_enrollment_tokens['github-runner'] in all.sops.yaml. An agent that's
+# already enrolled isn't moved by this: reassign it in Fleet (docs/ANSIBLE.md).
+elastic_agent_policy: github-runner

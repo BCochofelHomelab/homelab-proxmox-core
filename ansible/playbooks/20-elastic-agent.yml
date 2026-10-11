@@ -1,6 +1,7 @@
 ---
 # Every host's Elastic Agent into homelab-proxmox-workloads' Fleet: the VMs
-# (policy homelab-core: host and Docker metrics and logs) and the Proxmox
+# (policy homelab-core: host and Docker metrics and logs; runner01 in
+# github-runner: host metrics and logs, the runner's logs) and the Proxmox
 # nodes (policy proxmox, agent installed here first), through that repo's
 # Logstash. After the VMs' own services, so a Fleet outage never blocks them.
 - name: Elastic Agent

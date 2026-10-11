@@ -287,8 +287,11 @@ Every VM's Elastic Agent (installed, not enrolled, by the Packer template,
 ADR-3) is enrolled into **homelab-proxmox-workloads**' Fleet, policy
 `homelab-core` (`elastic_agent_policy`): host metrics and logs (`system`)
 and every Docker container's metrics and logs (`docker`: Caddy, CoreDNS,
-Pihole). The Proxmox nodes' agent goes into policy `proxmox` (host
-metrics and logs). The agent sends through that repo's Logstash, over
+Pihole). Two exceptions, each set in its group's `group_vars`: the
+Proxmox nodes' agent goes into policy `proxmox` (host metrics and logs),
+and the dry-run runner `runner01`'s into `github-runner` (host metrics and
+logs, and the runner's own logs from `/opt/actions-runner/_diag/`; no
+Docker integration, since it has no Docker). The agent sends through that repo's Logstash, over
 mTLS with the client certificate Fleet hands it; this repo holds no
 Elastic credential, only the enrollment tokens.
 
@@ -307,7 +310,8 @@ Elastic credential, only the enrollment tokens.
   ```yaml
   fleet_enrollment_tokens:
     homelab-core: "<enrollment token>"
-    proxmox: "<enrollment token>"   # policy Proxmox
+    proxmox: "<enrollment token>"         # policy Proxmox
+    github-runner: "<enrollment token>"   # policy GitHub runner
   ```
 
   It's on the `enroll` command line for the few seconds that runs (the
@@ -317,6 +321,10 @@ Elastic credential, only the enrollment tokens.
   moment (Fleet Server unreachable, a slow check-in) is waited for, never
   re-enrolled: `enroll --force` would register a new agent and leave the
   old one offline in Fleet.
+- **Moving a host to another policy:** changing `elastic_agent_policy`
+  doesn't move an agent that's already enrolled. Do it in Kibana, *Fleet →
+  Agents* → the host → *Actions → Assign to new policy*, then keep the
+  variable in step for the next rebuild.
 - **Proxmox nodes** (`elastic_agent_install`, no template): when
   `/usr/bin/elastic-agent` is missing, the role first installs
   `elastic_agent_version` from Elastic's tarball, checked like the
@@ -327,9 +335,9 @@ Elastic credential, only the enrollment tokens.
 - **Connected, not healthy:** the role and the health check judge
   `elastic-agent status`'s JSON (enrolled, `FleetState` connected), never
   its exit code, which is non-zero whenever any integration is degraded
-  (for example `homelab-core`'s Docker metrics on `runner01`, which has no
-  Docker). Fleet shows such an agent as unhealthy; that's for the policy
-  to fix, not this role.
+  (for example a Docker integration on a host without Docker). Fleet shows
+  such an agent as unhealthy; that's for the policy to fix, not this
+  role.
 - **Order:** after the VMs' own services, so Fleet being down never blocks
   DNS or Caddy; the health check reports it as an external issue.
 
