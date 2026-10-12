@@ -4,6 +4,7 @@
 # On the CI dry-run runner every job has HOMELAB_DRY_RUN=1 (docs/SETUP.md):
 # there, refuse anything but --check. A backstop only, since a pull request
 # can remove it; the dry-run environment's approval is the boundary.
+# fork test
 - name: Dry-run guard
   hosts: all
   gather_facts: false
