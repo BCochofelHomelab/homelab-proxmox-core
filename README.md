@@ -57,7 +57,7 @@ This repo is one of two that make up the homelab:
 | [SOPS](https://getsops.io) and [age](https://age-encryption.org) | Secrets stay encrypted in files: SOPS encrypts and decrypts them, with age keys. Each person or machine has its own age key, and each file opens only with the keys it was encrypted to. |
 | [GitHub Actions](https://docs.github.com/actions) | Checks every pull request, and dry-runs it on a self-hosted runner on the LAN. |
 | [Claude Code](https://docs.anthropic.com/en/docs/claude-code), the AI agent | Proposes changes as pull requests, with read-only credentials of its own. |
-| [Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers) | A VS Code extension that runs the AI agent in a container holding only its own credentials, never yours. |
+| [Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers) | A VS Code extension that runs the AI agent in a container holding only the agent's own credentials (its GitHub machine account and read-only tokens), never the user's. |
 
 ### Why it's built this way
 
