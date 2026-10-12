@@ -439,7 +439,9 @@ summary.
   replaces Ansible's default list.
 - **Every non-secret Packer/OpenTofu input is a default** in
   `variables.pkr.hcl` / `variables.tf` (public keys and LAN IPs included,
-  on purpose); secrets (`password_hash`, Proxmox tokens, `cipassword`) are
+  on purpose: tier 0 is anything fine on a billboard, never what
+  authenticates or what's reachable from the internet, `docs/CREDENTIALS.md`
+  *Secret tiers*); secrets (`password_hash`, Proxmox tokens, `cipassword`) are
   `PKR_VAR_*`/`TF_VAR_*` from `~/.secrets/`. Never add a varfile (it would
   override both, on one machine only), and don't mention one in the docs.
 

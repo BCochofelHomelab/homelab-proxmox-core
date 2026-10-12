@@ -59,13 +59,35 @@ Every value this homelab uses sits in one of five tiers, decided by **who
 can decrypt it**. SOPS sets recipients per file, so a tier is a set of
 files encrypted to the same age keys.
 
+**Tier 0 is anything that would be fine on a billboard.** It may describe
+the homelab (addresses, names, sizes, topology, public keys), but knowing
+it never grants access. Hiding it isn't what protects the homelab:
+authentication, the network ACLs and the per-role identities are. A LAN
+address only helps someone already on the LAN, who can scan the `/22` in
+seconds, and the `*.homelab.bcochofel.com` names are already public in
+Certificate Transparency logs, one per Let's Encrypt certificate.
+
+**Never tier 0**, however convenient:
+
+- anything that authenticates: tokens, passwords, private keys, API keys;
+- password hashes, which can be cracked offline (`password_hash`, the
+  cloud-init password);
+- anything about what's reachable from the internet: the home's public
+  IP, port forwards, a Cloudflare client-IP filter, any service exposed
+  outside the LAN;
+- Wi-Fi keys and the router's admin details.
+
+**Before adding a default**, ask: if this were on a billboard, could
+anyone do something they couldn't before? If yes, it goes in tier 1 or 2,
+and the variable gets no default and `sensitive = true`.
+
 | Tier | Readable by | Where | Committed? | Holds |
 | --- | --- | --- | --- | --- |
 | **0. Public** | anyone | the repo, plain text | yes | Every non-secret input (`variables.tf`/`variables.pkr.hcl` defaults: IPs, sizes, the SSH and age **public** keys), `.sops.yaml`. |
 | **1. Yours only** | your key | `~/.secrets/homelab.yaml` | no | What changes infrastructure: the Packer and `terraform` Proxmox tokens, your HCP token, `cipassword`, the template's password hash. |
 | **2. You + CI** | your key, the `ci` key | `ci/`, `ansible/inventory/group_vars/*.sops.yaml` | yes, encrypted | What the dry-run runner needs: `ci@pve!plan`, the HCP team token, `cipassword`, the automation SSH key, and the inventory secrets (Cloudflare token, Pi-hole password). |
 | **3. You + AI agent** | your key, the `ai-agent` key | `~/.secrets/homelab-ro.yaml`, `~/.secrets/ai-agent-git.yaml` | no | Read-only credentials (the `ai-agent@pve` token, the GitHub MCP token) and the machine user's token. |
-| **4. Dry-run output** | your key, the `ai-agent` key | GitHub artifacts, 7 days | — | The full output of a dry-run (`plan.txt.age`, `check.txt.age`): no secrets, but the LAN's details. |
+| **4. Dry-run output** | your key, the `ai-agent` key | GitHub artifacts, 7 days | — | The full output of a dry-run (`plan.txt.age`, `check.txt.age`). Encrypted as defense in depth: it should hold no secret, but a value someone forgot to mark `sensitive` or `no_log` would show up in it. |
 
 Which key opens what:
 

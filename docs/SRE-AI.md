@@ -42,7 +42,7 @@ Update this table whenever an item is ticked.
 | --- | --- | --- | --- |
 | A1. Identity | 7 | 3 | Every principal exists but a read-only state token, workloads' automation key and `ai-agent-scheduled`. |
 | A2. Command audit trail | 0 | 4 | Not started. |
-| A3. Secret tiers | 1 | 1 | Core done (the secret tiers); workloads' classification open. 4 items superseded. |
+| A3. Secret tiers | 1 | 2 | Core's tiers and the tier 0 rule done; the secret-variable check and workloads open. 4 items superseded. |
 | A4. Shared secret files | 2 | 0 | Done. |
 | A5. Host shell hygiene | 1 | 0 | Done. |
 | A6. Devcontainer | 3 | 0 | Done in both repos. |
@@ -211,7 +211,9 @@ start.
 
 Now the [secret tiers](CREDENTIALS.md#secret-tiers) in `CREDENTIALS.md`:
 every value sits in one tier, decided by **who can decrypt it**, and every
-non-secret Packer/OpenTofu input is a public default (tier 0). The
+non-secret Packer/OpenTofu input is a public default (tier 0): anything
+that would be fine on a billboard, never anything that authenticates or
+describes what's reachable from the internet. The
 original plan below, with its three variable tiers, is kept for the
 record; its "repo-local, don't-publish" tier was dropped, since those LAN
 values are already public in the README and inventory.
@@ -252,8 +254,12 @@ undecryptable by construction (a `$6$` hash can be cracked offline).
       - Tier 3: those, `target_node`, `vm_template`, `network_bridge`,
         `ciuser`, `ssh_private_key_file` (a path outside the repo),
         `additional_users`, and the sizing/boolean variables.
-- [ ] **Workloads classification:** same exercise for its Terramate
-      stacks.
+- [ ] **Core:** a pre-commit check that a secret-named variable (token,
+      secret, password, hash, private key, API key) never has a default
+      and is always `sensitive`, with a commented allowlist for names that
+      only look secret.
+- [ ] **Workloads classification:** the rebuilt repo starts with the same
+      rule and check.
 - ~~Done when: both repos pass `packer validate` / `tofu plan` on
   dummy defaults alone, and real secrets exist only in
   `~/.secrets/homelab.yaml` and CI.~~ Superseded: done for core when every
