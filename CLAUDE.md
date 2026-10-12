@@ -442,7 +442,10 @@ summary.
   on purpose: tier 0 is anything fine on a billboard, never what
   authenticates or what's reachable from the internet, `docs/CREDENTIALS.md`
   *Secret tiers*); secrets (`password_hash`, Proxmox tokens, `cipassword`) are
-  `PKR_VAR_*`/`TF_VAR_*` from `~/.secrets/`. Never add a varfile (it would
+  `PKR_VAR_*`/`TF_VAR_*` from `~/.secrets/`, with no default and
+  `sensitive = true` (pre-commit `secret_variables`; a name that only looks
+  secret goes in `scripts/check_secret_variables.py`'s `ALLOWLIST`, with
+  the reason). Never add a varfile (it would
   override both, on one machine only), and don't mention one in the docs.
 
 ## Proxmox auth — one identity per role (Proxmox VE 9.x)

@@ -42,7 +42,7 @@ Update this table whenever an item is ticked.
 | --- | --- | --- | --- |
 | A1. Identity | 7 | 3 | Every principal exists but a read-only state token, workloads' automation key and `ai-agent-scheduled`. |
 | A2. Command audit trail | 0 | 4 | Not started. |
-| A3. Secret tiers | 1 | 2 | Core's tiers and the tier 0 rule done; the secret-variable check and workloads open. 4 items superseded. |
+| A3. Secret tiers | 2 | 1 | Core done: the tiers, the tier 0 rule and the secret-variable check; workloads open. 4 items superseded. |
 | A4. Shared secret files | 2 | 0 | Done. |
 | A5. Host shell hygiene | 1 | 0 | Done. |
 | A6. Devcontainer | 3 | 0 | Done in both repos. |
@@ -254,10 +254,10 @@ undecryptable by construction (a `$6$` hash can be cracked offline).
       - Tier 3: those, `target_node`, `vm_template`, `network_bridge`,
         `ciuser`, `ssh_private_key_file` (a path outside the repo),
         `additional_users`, and the sizing/boolean variables.
-- [ ] **Core:** a pre-commit check that a secret-named variable (token,
+- [x] **Core:** a pre-commit check that a secret-named variable (token,
       secret, password, hash, private key, API key) never has a default
       and is always `sensitive`, with a commented allowlist for names that
-      only look secret.
+      only look secret (`scripts/check_secret_variables.py`).
 - [ ] **Workloads classification:** the rebuilt repo starts with the same
       rule and check.
 - ~~Done when: both repos pass `packer validate` / `tofu plan` on

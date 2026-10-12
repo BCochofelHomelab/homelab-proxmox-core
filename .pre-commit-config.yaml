@@ -79,6 +79,16 @@ repos:
         entry: gitleaks git --pre-commit --staged --redact --no-banner
         pass_filenames: false
 
+      # A secret-named OpenTofu or Packer variable (token, secret, password,
+      # hash, private key, API key) has no default and is sensitive
+      # (docs/CREDENTIALS.md, "Secret tiers"). Standard library only; names
+      # that only look secret are allowlisted in the script, with why.
+      - id: secret_variables
+        name: secret variables have no default and are sensitive
+        language: python
+        entry: python scripts/check_secret_variables.py
+        files: \.(tf|pkr\.hcl)$
+
       # Every SOPS file must be committed encrypted. `sops filestatus` reads
       # only the file's metadata: no key and no network, so it gives the
       # same answer on WSL, in the devcontainer, in CI and for the AI agent.
