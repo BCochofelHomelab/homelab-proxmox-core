@@ -108,12 +108,11 @@ worth catching at build time.
 
 ### ADR-3: Elastic Agent baked in, not enrolled (superseded)
 
-**Superseded:** the template no longer installs Elastic Agent. It was
-installed, not enrolled, for `homelab-proxmox-workloads`' Fleet to enroll
-later; that repo is being rebuilt, and how its new version observes the
-hosts is its own decision, so this template carries nothing for it.
-`scripts/30-install-elastic-agent.sh`, `install_elastic_agent` and
-`elastic_agent_version` were removed. The number stays taken.
+**Superseded:** the template no longer installs Elastic Agent. How core's
+hosts are observed is `homelab-proxmox-platform`'s decision, so this
+template carries nothing for it. `scripts/30-install-elastic-agent.sh`,
+`install_elastic_agent` and `elastic_agent_version` were removed. The
+number stays taken.
 
 ### ADR-4: The build VM uses a static IP, not DHCP
 

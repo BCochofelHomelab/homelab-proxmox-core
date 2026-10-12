@@ -254,7 +254,7 @@ In the Cloudflare dashboard (**My Profile → API Tokens → Create Token**):
 
 The token is shown **once**. Put it straight into
 `ansible/inventory/group_vars/caddy.sops.yaml` as `cloudflare_api_token`
-(step 5). One token per repo: the workloads repo gets its own, so either
+(step 5). One token per repo: the platform repo gets its own, so either
 can be revoked without touching the other.
 
 ## 4. Age keys
@@ -713,8 +713,8 @@ its credential, not by how it's normally used.
 | GitHub | Repos, issues, pull requests and Actions runs for both homelab repos | Fine-grained PAT, read-only |
 | Terraform | Provider and module docs from the public registry (e.g. `bpg/proxmox`), so resources aren't written from memory | None |
 
-MCP servers for the workloads themselves belong to
-`homelab-proxmox-workloads`; nothing in this repo needs them.
+MCP servers for what the platform runs belong to
+`homelab-proxmox-platform`; nothing in this repo needs them.
 
 ### How they're configured
 
@@ -771,7 +771,7 @@ it as `GITHUB_PERSONAL_ACCESS_TOKEN` in `homelab-ro.yaml`:
 
 - **Resource owner:** `BCochofelHomelab`.
 - **Repository access:** only `homelab-proxmox-core` and
-  `homelab-proxmox-workloads`.
+  `homelab-proxmox-platform`.
 - **Repository permissions:** *Read-only* for Contents, Issues, Pull
   requests, Actions and Metadata. Nothing else, and no write access.
 
@@ -848,7 +848,7 @@ new token*):
 - **Resource owner:** `BCochofelHomelab`.
 - **Expiration:** 90 days.
 - **Repository access:** only `homelab-proxmox-core` and
-  `homelab-proxmox-workloads`.
+  `homelab-proxmox-platform`.
 - **Repository permissions:** *Read and write* for Contents and Pull
   requests; *Read-only* for Actions, Issues and Metadata; *No access* for
   everything else, in particular Workflows, Administration, Secrets and

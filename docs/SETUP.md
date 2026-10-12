@@ -82,7 +82,7 @@ Then, in its *Settings*:
 ### Repositories
 
 Two **public** repositories, `homelab-proxmox-core` and
-`homelab-proxmox-workloads`, default branch `main`. Rebuilding: create
+`homelab-proxmox-platform`, default branch `main`. Rebuilding: create
 each one **empty** (no README, licence or `.gitignore`), then push it from
 your clone, tags included:
 
@@ -180,7 +180,7 @@ for t in sre-lead sre-team; do
   echo "== $t: $(gh api orgs/$o/teams/$t/members --jq '.[].login' | paste -sd, -)"
   gh api orgs/$o/teams/$t/repos --jq '.[] | "  \(.name): \(.role_name)"'
 done
-for r in homelab-proxmox-core homelab-proxmox-workloads; do
+for r in homelab-proxmox-core homelab-proxmox-platform; do
   echo "== $r"
   gh api repos/$o/$r --jq '{visibility, delete_branch_on_merge}'
   gh api repos/$o/$r/collaborators --jq '.[] | "  \(.login): \(.role_name)"'

@@ -41,9 +41,8 @@ This repo is one of two that make up the homelab:
 
 - **`homelab-proxmox-core`** (this repo) — edge routing and name
   resolution: the Caddy reverse proxy and the CoreDNS + Pihole DNS pair.
-- **[`homelab-proxmox-workloads`](https://github.com/BCochofelHomelab/homelab-proxmox-workloads)**
-  — every workload that runs behind it, managed with OpenTofu and
-  Terramate.
+- **[`homelab-proxmox-platform`](https://github.com/BCochofelHomelab/homelab-proxmox-platform)**
+  — everything that runs behind it.
 
 ### Why it's built this way
 
@@ -350,7 +349,7 @@ endpoint (`:9153`), not a dashboard.
   release to an apply; branches, commits, checks, and the toolchain.
 - [`docs/SRE-AI.md`](docs/SRE-AI.md) — the homelab-wide SRE AI-autonomy
   roadmap and its status, with checkboxes (this repo +
-  `homelab-proxmox-workloads`).
+  `homelab-proxmox-platform`).
 
 ## References
 
