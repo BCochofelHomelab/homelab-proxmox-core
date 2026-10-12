@@ -830,8 +830,21 @@ everywhere.
 ### The machine user
 
 1. Create a GitHub account `bcochofel-ai-agent`, with its own email
-   address (a `+ai-agent` alias of yours works), and turn on two-factor
-   authentication.
+   address, and turn on two-factor authentication. It's an ordinary
+   GitHub account that only the AI agent's automation uses. GitHub's
+   terms allow each person one *machine account* (their name for a
+   machine user) next to their own.
+
+   **Its email address.** GitHub needs a verified address that no other
+   account uses, and yours already belongs to your account. Gmail's *plus
+   addressing* gives you a second one without a new mailbox: everything
+   sent to `<you>+ai-agent@gmail.com` arrives in `<you>@gmail.com`'s
+   inbox, while GitHub treats it as a different address. In this setup,
+   the alias is simply the machine user's email address: its
+   verification email and notifications land in your inbox, with no
+   second mailbox to run. Other
+   providers, Outlook and Fastmail among them, support the same `+`
+   form; if yours doesn't, use any other address you control.
 2. Invite it to the `BCochofelHomelab` organization as a member, and add
    it to the `sre-team` team only, which gives it Write on both
    repositories ([`SETUP.md`](SETUP.md#teams)).
