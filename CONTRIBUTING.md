@@ -133,13 +133,19 @@ mise run lint      # every hook on every file
 mise run check     # the above + gitleaks on the full history (what CI runs)
 ```
 
-Two repo-specific rules the hooks enforce:
+Three repo-specific rules the hooks enforce:
 
 - **Every `check_mode: false`** says why it's safe on the same line
   (`check_mode: false # read-only: ...`): it runs for real in the CI
   dry-run.
 - **Every action in a workflow** is pinned to a commit SHA, with its
   version in a comment.
+- **A secret-named OpenTofu or Packer variable** (token, secret,
+  password, hash, private key, API key) has no default and is
+  `sensitive = true` ([`docs/CREDENTIALS.md`](docs/CREDENTIALS.md#secret-tiers)).
+  A name that only looks secret goes in the allowlist of
+  [`scripts/check_secret_variables.py`](scripts/check_secret_variables.py),
+  with the reason.
 
 Silence a ShellCheck finding only with a `# shellcheck disable=SCxxxx`
 comment that says why.
