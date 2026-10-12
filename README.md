@@ -382,5 +382,7 @@ endpoint (`:9153`), not a dashboard.
   follow
 - [semantic-release](https://semantic-release.gitbook.io/) — computes and
   publishes releases from the commit history
+- [mise](https://mise.jdx.dev/) — the pinned toolchain (`mise.toml`) and
+  the repo's tasks (`mise run <task>`)
 - [pre-commit](https://pre-commit.com/) — the git hook framework running
   the checks in `.pre-commit-config.yaml`
