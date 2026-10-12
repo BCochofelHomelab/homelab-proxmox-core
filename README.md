@@ -57,7 +57,7 @@ This repo is one of two that make up the homelab:
 | [SOPS](https://getsops.io) and [age](https://age-encryption.org) | Secrets stay encrypted in files: SOPS encrypts and decrypts them, with age keys. Each person or machine has its own age key, and each file opens only with the keys it was encrypted to. |
 | [GitHub Actions](https://docs.github.com/actions) | Checks every pull request, and dry-runs it on a self-hosted runner on the LAN. |
 | [Claude Code](https://docs.anthropic.com/en/docs/claude-code), the AI agent | Proposes changes as pull requests, with read-only credentials of its own. |
-| [Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers) | A VS Code extension that runs the AI agent in a container holding only the agent's own credentials (its GitHub machine account and read-only tokens), never the user's. |
+| [Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers) | A VS Code extension that runs the AI agent in a container holding only the agent's own credentials (its GitHub machine user and read-only tokens), never the user's. |
 
 ### Why it's built this way
 
@@ -73,7 +73,7 @@ Much of what may look like extra ceremony here follows from that:
 | Least privilege, one identity per role | Separate Proxmox tokens for Packer, for applying, and for the agent's read-only work. The agent has no HCP Terraform token at all: the Free plan can't issue a read-only one. |
 | The agent reads, humans change | The agent has only the `ai-agent` age key, which opens the read-only credentials and nothing else. |
 | Dry-run before any change | Every pull request touching `terraform/` or `ansible/` gets `tofu plan` and `ansible-playbook --check` on a self-hosted runner, after your approval; apply stays a human step ([`docs/SETUP.md`](docs/SETUP.md#stage-8-the-dry-run-runner-optional)). |
-| Boundaries enforced by construction | The agent's Dev Container holds only the read-only credentials ([`docs/DEVCONTAINER.md`](docs/DEVCONTAINER.md)). |
+| Boundaries enforced by construction | The AI agent's devcontainer holds only the read-only credentials ([`docs/DEVCONTAINER.md`](docs/DEVCONTAINER.md)). |
 
 The roadmap for the rest of the paper (audit trail, alerting, the
 autonomy levels from assisted investigation to bounded auto-remediation)

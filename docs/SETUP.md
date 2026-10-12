@@ -16,7 +16,7 @@ closed by its check. Day 2 (adding a proxied site, testing DNS) is in the
   this page says when to do each step. Start by reading its
   [secret tiers](CREDENTIALS.md#secret-tiers): who can read what, and why.
 - **This page is the record** of everything configured by hand (GitHub,
-  Proxmox, HCP, Cloudflare). Change a setting, change it here too.
+  Proxmox, HCP Terraform, Cloudflare). Change a setting, change it here too.
 
 ## Stage 1. Workstation
 
