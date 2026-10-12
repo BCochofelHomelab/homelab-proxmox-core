@@ -511,8 +511,11 @@ And around them:
 
 ### Output: the logs are public
 
-Both repositories are public, so are Actions logs, and a full plan or
-`--diff` shows hostnames, IPs and the DNS zone.
+Both repositories are public, and so are their Actions logs. A full plan
+or `--diff` should hold no secret, but a value someone forgot to mark
+`sensitive` or `no_log` would show up in it, so the full output is
+encrypted as defense in depth. The hostnames, IPs and DNS zone in it are
+tier 0 ([`CREDENTIALS.md`](CREDENTIALS.md#secret-tiers)), not the reason.
 
 - The log, the run summary and the pull request comment get only `Plan: X
   to add, Y to change, Z to destroy` and the Ansible recap.
