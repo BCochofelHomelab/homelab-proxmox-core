@@ -25,7 +25,7 @@ Each template's inputs come from two places, split by sensitivity
 
 - **`variables.pkr.hcl`** — committed. Declares every variable, with a
   default for everything that isn't secret: VM sizing, packages, the
-  build VM's static network, the Elastic Agent version, the SSH key
+  build VM's static network, the SSH key
   Packer connects with (`ssh_private_key_file`, a path), the public keys
   (`ssh_authorized_keys`) and `additional_users`. Change a default here,
   in a pull request.

@@ -38,16 +38,15 @@ Packer (template) -> Terraform (clone VMs + generate inventory) -> Ansible (conf
 Topology:
 
 - `proxy` (`192.168.68.16`, `proxy.homelab.bcochofel.com`) runs Caddy in
-  Docker Compose. Caddy fronts five sites today —
+  Docker Compose. Caddy fronts four sites today —
   `nas.homelab.bcochofel.com` (QNAP QTS admin UI),
   `www.homelab.bcochofel.com` (QNAP Web Station / Home Studio KB pages),
   `pve1.homelab.bcochofel.com` (the Proxmox VE web UI itself) and
-  `ha.homelab.bcochofel.com` (Home Assistant on the Raspberry Pi 3) and
-  `kibana.homelab.bcochofel.com` (Kibana, from `homelab-proxmox-workloads`,
-  over HTTPS verified against that repo's internal CA) — see
+  `ha.homelab.bcochofel.com` (Home Assistant on the Raspberry Pi 3) — see
   `ansible/inventory/group_vars/all.yml`'s `caddy_sites` for the live list.
-  Sites for other `homelab-proxmox-workloads` backends are added the same
-  way.
+  Sites for `homelab-proxmox-workloads` backends are added the same way; a
+  backend with a private CA gets `trusted_ca` (`caddy_trusted_cas`, none
+  today).
 - The `dns` VM (`192.168.68.15` VM management IP, Proxmox name/hostname
   `server01` — the Ansible inventory group is still `dns`, hardcoded in
   `terraform/templates/inventory.ini.tftpl` independent of the VM's own
@@ -115,9 +114,9 @@ toolchain, Docker Compose service style.
 - **The `*.homelab.bcochofel.com` hostnames are LAN-only.** The public
   `bcochofel.com` zone gets no A/AAAA records for them; Cloudflare is
   used only for Caddy's ACME DNS-01 TXT records.
-- **Only `hosts.ini` is generated.** `ansible/inventory/group_vars/` and
-  `proxmox.ini` (the Proxmox nodes, reached as the `ansible` user) are
-  hand-authored and must never be overwritten by Terraform.
+- **Only `hosts.ini` is generated.** `ansible/inventory/group_vars/` is
+  hand-authored and must never be overwritten by Terraform. Ansible manages
+  only the VMs: the Proxmox node `pve1` isn't in the inventory.
 - **Proxied sites live in `inventory/group_vars/all.yml`'s `caddy_sites`
   list**, not in Terraform and not hardcoded in the Caddyfile template —
   adding a site is a one-entry change (the `Caddyfile.j2` template loops
@@ -210,20 +209,16 @@ toolchain, Docker Compose service style.
   set with `pihole setpassword` on the NAS, not in its compose file.
   gravity.db/blocklists are deliberately **not** replicated (no
   gravity-sync, no Teleporter). `ansible.cfg` names `inventory/hosts.ini`
-  and `inventory/proxmox.ini` explicitly, not the directory: Ansible's
+  explicitly, not the directory: Ansible's
   directory scan skips `.ini` files (`INVENTORY_IGNORE_EXTS`).
 - **CoreDNS plugin reference: <https://coredns.io/plugins/>.** The QNAP
   side's `secondary` plugin never persists the transferred zone to disk,
   so every restart there re-triggers a full AXFR from the primary —
   outside this repo's control.
-- **Packer builds `ubuntu-26.04`**, minimal: Docker, plus Elastic Agent
-  (`scripts/30-install-elastic-agent.sh`, template README ADR-3): Elastic's
-  signed Linux tarball (GPG + SHA-512 verified) at `elastic_agent_version`,
-  installed with `elastic-agent install --non-interactive` (no `--url`) into
-  `/opt/Elastic/Agent`, **not enrolled, service disabled and stopped** — a
-  later Ansible playbook enrolls it (`elastic-agent enroll`) and enables it.
-  Tarball, not DEB, so Fleet can upgrade it; `elastic_agent_version` only
-  sets the version new clones start at. No in-VM Trivy,
+- **Packer builds `ubuntu-26.04`**, minimal: Docker only. No Elastic
+  Agent and no enrollment (template README ADR-3, superseded): how core's
+  hosts are observed waits for the rebuilt `homelab-proxmox-workloads`
+  (`docs/SRE-AI.md` A9). No in-VM Trivy,
   no Alloy/system_report/custom-CA tooling. Trivy is used at the repo
   level to scan this repo's IaC (`.trivy.yaml`/`.trivyignore`,
   `docs/TERRAFORM.md`).

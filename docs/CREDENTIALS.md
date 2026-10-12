@@ -63,7 +63,7 @@ files encrypted to the same age keys.
 | --- | --- | --- | --- | --- |
 | **0. Public** | anyone | the repo, plain text | yes | Every non-secret input (`variables.tf`/`variables.pkr.hcl` defaults: IPs, sizes, the SSH and age **public** keys), `.sops.yaml`. |
 | **1. Yours only** | your key | `~/.secrets/homelab.yaml` | no | What changes infrastructure: the Packer and `terraform` Proxmox tokens, your HCP token, `cipassword`, the template's password hash. |
-| **2. You + CI** | your key, the `ci` key | `ci/`, `ansible/inventory/group_vars/*.sops.yaml` | yes, encrypted | What the dry-run runner needs: `ci@pve!plan`, the HCP team token, `cipassword`, the automation SSH key, and the inventory secrets (Cloudflare token, Pi-hole password, Fleet enrollment tokens). |
+| **2. You + CI** | your key, the `ci` key | `ci/`, `ansible/inventory/group_vars/*.sops.yaml` | yes, encrypted | What the dry-run runner needs: `ci@pve!plan`, the HCP team token, `cipassword`, the automation SSH key, and the inventory secrets (Cloudflare token, Pi-hole password). |
 | **3. You + AI agent** | your key, the `ai-agent` key | `~/.secrets/homelab-ro.yaml`, `~/.secrets/ai-agent-git.yaml` | no | Read-only credentials (the `ai-agent@pve` token, the GitHub MCP token) and the machine user's token. |
 | **4. Dry-run output** | your key, the `ai-agent` key | GitHub artifacts, 7 days | — | The full output of a dry-run (`plan.txt.age`, `check.txt.age`): no secrets, but the LAN's details. |
 
@@ -182,54 +182,6 @@ pveum user token permissions ai-agent@pve ai-agent --path /
 pveum user token permissions terraform@pve terraform --path /
 pveum user token permissions packer@pve packer --path /
 ```
-
-### SSH user for Ansible on the Proxmox nodes
-
-Ansible manages the Proxmox nodes themselves (Elastic Agent,
-`ansible/inventory/proxmox.ini`), not through the API but over SSH, as a
-dedicated `ansible` user rather than `root`. It has no password, only your
-SSH key, and passwordless `sudo` for Ansible's `become`. Run these on each
-node, as `root` (web shell or `ssh root@…`):
-
-```bash
-# 1. sudo: Proxmox VE is minimal Debian and doesn't ship it
-apt-get install -y sudo
-
-# 2. The user: no password at all (no password login, no su to it)
-adduser --disabled-password --gecos "Ansible (homelab-proxmox-core)" ansible
-
-# 3. Its SSH key: your workstation's public key, the one already on the VMs
-install -d -m 700 -o ansible -g ansible /home/ansible/.ssh
-echo '<contents of ~/.ssh/id_ed25519.pub>' > /home/ansible/.ssh/authorized_keys
-chown ansible:ansible /home/ansible/.ssh/authorized_keys
-chmod 600 /home/ansible/.ssh/authorized_keys
-
-# 4. Root through sudo without a password (Ansible's `become`)
-echo 'ansible ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/ansible
-chmod 440 /etc/sudoers.d/ansible
-visudo -cf /etc/sudoers.d/ansible     # must print "parsed OK"
-```
-
-Instead of pasting the key in step 3, you can send it from WSL while
-`root` login still works:
-
-```bash
-ssh root@192.168.68.20 'cat > /home/ansible/.ssh/authorized_keys' < ~/.ssh/id_ed25519.pub
-```
-
-Check from WSL, then add the node to `ansible/inventory/proxmox.ini`:
-
-```bash
-ssh ansible@192.168.68.20 'sudo -n true && echo ok'
-```
-
-- **Root's own `authorized_keys`** on Proxmox is a symlink into
-  `/etc/pve/priv/` (the cluster file system); the `ansible` user's is an
-  ordinary file in its home directory, as above.
-- **That key is root-equivalent on the node** (`NOPASSWD:ALL`), as it
-  already is on every VM.
-- **A new node** (e.g. `pve2`) gets the same steps, then one line in
-  `proxmox.ini`.
 
 ## 2. HCP Terraform: workspace and tokens
 
@@ -478,11 +430,9 @@ your editor on a new file and is encrypted on save, as above:
 ```bash
 sops ansible/inventory/group_vars/caddy.sops.yaml
 sops ansible/inventory/group_vars/pihole.sops.yaml
-sops ansible/inventory/group_vars/all.sops.yaml
 
 sops filestatus ansible/inventory/group_vars/caddy.sops.yaml    # {"encrypted":true}
 sops filestatus ansible/inventory/group_vars/pihole.sops.yaml   # {"encrypted":true}
-sops filestatus ansible/inventory/group_vars/all.sops.yaml      # {"encrypted":true}
 ```
 
 `caddy.sops.yaml`:
@@ -495,16 +445,6 @@ cloudflare_api_token: <Cloudflare token from step 3>
 
 ```yaml
 pihole_webpassword: <Pihole admin password>
-```
-
-`all.sops.yaml` (every host; Fleet enrollment tokens from
-homelab-proxmox-workloads' Kibana, *Fleet → Enrollment tokens*, see
-[`ANSIBLE.md`](ANSIBLE.md#elastic-agent)):
-
-```yaml
-fleet_enrollment_tokens:
-  homelab-core: <enrollment token of the Homelab core policy>
-  proxmox: <enrollment token of the Proxmox policy>
 ```
 
 The `community.sops` vars plugin (`ansible/ansible.cfg`) decrypts them only
@@ -991,7 +931,7 @@ git switch main && git pull
 | --- | --- | --- |
 | `ci/dry-run.sops.yaml` | `TF_VAR_proxmox_api_token` (`ci@pve!plan=...`), `TF_VAR_cipassword`, `TF_TOKEN_app_terraform_io` | you + `ci` |
 | `ci/ssh_ed25519.key.sops` | The automation SSH private key | you + `ci` |
-| `ansible/inventory/group_vars/*.sops.yaml` | The inventory secrets (Cloudflare token, Pi-hole password, Fleet enrollment tokens) | you + `ci` |
+| `ansible/inventory/group_vars/*.sops.yaml` | The inventory secrets (Cloudflare token, Pi-hole password) | you + `ci` |
 
 The `ci` key is a recipient of nothing in `~/.secrets/`: the runner never
 holds your credentials. The `ai-agent` key is a recipient of none of
@@ -1026,8 +966,7 @@ which no branch rule matches). And under *Settings → Actions → General*:
 
 What `ansible:check` connects with, next to your own key: in the Packer
 template (`ssh_authorized_keys`, for VMs built from now on) and in the
-`ci_ssh_key` role (`ci_ssh_public_key`, for the running VMs and the
-Proxmox nodes' `ansible` user). Not in OpenTofu's `sshkeys`: cloud-init
+`ci_ssh_key` role (`ci_ssh_public_key`, for the running VMs). Not in OpenTofu's `sshkeys`: cloud-init
 only applies keys at a VM's first boot.
 
 From the repo root, create the keypair, encrypt its private half into the
