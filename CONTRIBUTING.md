@@ -7,36 +7,57 @@ to day.
 
 ## How a change flows
 
-Every change goes through a pull request. Only you merge, and only you
-apply.
+Every change goes through a pull request, in one of two lanes. The AI
+agent proposes changes as its machine user. You propose changes too, and
+you're the only one who reviews, merges and applies.
+
+### The AI agent's lane
 
 ```mermaid
-flowchart LR
-  agent["AI agent<br/>(devcontainer)"] --> pr[Pull request]
-  you["You<br/>(WSL clone)"] --> pr
-  pr --> ci["CI: pre-commit<br/>(GitHub-hosted)"]
-  pr --> dry["Dry-run: plan + check<br/>(runner01, after your approval)"]
-  ci --> review[Review and merge]
-  dry --> review
-  ci -. failures .-> agent
-  review --> release["Release<br/>(tag + notes)"]
-  release --> apply["Apply<br/>(your WSL clone)"]
-  apply --> verify["Verify<br/>(health check)"]
+flowchart TD
+  task(["A task from you"]) --> branch["Branches in its own clone<br/>(its devcontainer)"]
+  branch --> change["Makes the change and runs the checks<br/>that need no credentials"]
+  change --> push["Commits and pushes<br/>as bcochofel-ai-agent"]
+  push --> pr["Opens the pull request<br/>(workflow files go in its description)"]
+  pr --> ci{"CI passes?"}
+  ci -- no --> change
+  ci -- yes --> you(["Waits for your review:<br/>your lane"])
 ```
 
-**The AI agent's lane**, in its devcontainer
-([`docs/DEVCONTAINER.md`](docs/DEVCONTAINER.md)): it branches, makes the
-change, runs the checks that need no credentials (`mise run lint`, `tofu
-init -backend=false && tofu validate`, `ansible-lint`, `--syntax-check`),
-commits and pushes as its machine user, `bcochofel-ai-agent`, and opens the
-pull request. It follows CI with `gh pr checks` and pushes fixes to the
-same branch. It can't push `.github/workflows/` (those files go in the
-pull request's description, for you to add), merge, approve, tag, decrypt
-your secrets, or reach a host.
+It works in its devcontainer ([`docs/DEVCONTAINER.md`](docs/DEVCONTAINER.md)),
+as its machine user, `bcochofel-ai-agent`, never as you.
 
-**Your lane**, in your WSL clone: the same branch, commit and pull request
-flow, as you. You can run `mise run tofu:plan` for an early look. Yours is
-the only lane that can change `.github/workflows/`.
+- **Its checks:** `mise run lint`, `tofu init -backend=false && tofu
+  validate`, `ansible-lint` and `--syntax-check`. It follows CI with `gh
+  pr checks` and pushes fixes to the same branch.
+- **What it can't do:** push `.github/workflows/` (those files go in the
+  pull request's description, for you to add), merge, approve, tag,
+  decrypt your secrets, or reach a host.
+
+### Your lane
+
+```mermaid
+flowchart TD
+  own(["Your change<br/>(your WSL clone, as you)"]) --> pr["Pull request"]
+  agent(["The AI agent's<br/>pull request"]) --> pr
+  pr --> ci["CI: pre-commit<br/>(GitHub-hosted)"]
+  pr --> approve["You approve the<br/>dry-run environment"]
+  approve --> dry["Dry-run on runner01:<br/>plan and check, a comment on the PR"]
+  ci --> review{"Diff, CI and<br/>dry-run all good?"}
+  dry --> review
+  review -- no --> fix["Request changes,<br/>or push a fix"]
+  fix --> pr
+  review -- yes --> merge["Approve and merge"]
+  merge --> release["Release: semantic-release<br/>tags main"]
+  release --> apply["Apply from main:<br/>tofu:plan, tofu:apply, ansible:site"]
+  apply --> verify{"Health check<br/>passes?"}
+  verify -- no --> own
+```
+
+You work in your own WSL clone, as you. The branch, commit and pull
+request steps are the same as the AI agent's; you can also run `mise run
+tofu:plan` for an early look. Yours is the only lane that can change
+`.github/workflows/`, and the only one that reviews, merges and applies.
 
 **On the pull request:**
 
