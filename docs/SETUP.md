@@ -292,8 +292,10 @@ or changes infrastructure. Most of that is enforced by GitHub; the rest by
 
 ### The machine user and its token
 
-1. **The account:** `bcochofel-ai-agent`, with its own email address (a
-   `+ai-agent` alias of yours works) and two-factor authentication.
+1. **The account:** `bcochofel-ai-agent`, with its own email address
+   (for example a `+ai-agent` alias of your Gmail address,
+   [`CREDENTIALS.md`](CREDENTIALS.md#the-machine-user) step 9) and
+   two-factor authentication.
 2. **The organization:** invite it as a member, and add it to `sre-team`
    only. That's its Write on both repositories; nothing else.
 3. **Its token**, signed in as the machine user: a fine-grained personal
