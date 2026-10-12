@@ -2,12 +2,12 @@
 
 The homelab-wide roadmap, and where it stands, for applying Google's
 [*AI engineering for reliable operations*](https://sre.google/resources/practices-and-processes/ai-engineering-reliable-operations/)
-to this homelab. It's the one copy for both repos (homelab-proxmox-workloads
+to this homelab. It's the one copy for both repos (homelab-proxmox-platform
 points here):
 
 - **`homelab-proxmox-core`** (this repo): Caddy, CoreDNS, Pihole.
-- **`homelab-proxmox-workloads`**: every workload behind the edge, using
-  OpenTofu and Terramate.
+- **`homelab-proxmox-platform`**: everything behind the edge. What runs
+  there, and with which tools, isn't decided yet.
 
 Both repos are built from scratch with this model in place from the first
 deploy. Credentials and identities come first (Phase A), so every later
@@ -30,7 +30,7 @@ that.
 - `[ ]` still to do.
 - ~~Struck through~~: superseded by a later decision, kept with the reason.
 - Items that span both repos are split into a **core** and a
-  **workloads** line, each ticked on its own.
+  **platform** line, each ticked on its own.
 
 How each piece is set up: [`SETUP.md`](SETUP.md).
 
@@ -40,15 +40,15 @@ Update this table whenever an item is ticked.
 
 | Section | Done | Open | Where it stands |
 | --- | --- | --- | --- |
-| A1. Identity | 7 | 3 | Every principal exists but a read-only state token, workloads' automation key and `ai-agent-scheduled`. |
+| A1. Identity | 7 | 3 | Every principal exists but a read-only state token, platform's automation key and `ai-agent-scheduled`. |
 | A2. Command audit trail | 0 | 4 | Not started. |
-| A3. Secret tiers | 2 | 1 | Core done: the tiers, the tier 0 rule and the secret-variable check; workloads open. 4 items superseded. |
-| A4. Shared secret files | 2 | 0 | Done. |
+| A3. Secret tiers | 2 | 1 | Core done: the tiers, the tier 0 rule and the secret-variable check; platform open. 4 items superseded. |
+| A4. Shared secret files | 1 | 1 | Core done; platform open. |
 | A5. Host shell hygiene | 1 | 0 | Done. |
-| A6. Devcontainer | 3 | 0 | Done in both repos. |
-| A7. Ansible secrets (workloads) | 2 | 0 | Done. |
-| A8. Investigation MCPs | 2 | 4 | Core's three and Elastic done; GitHub Issues write waits for Phase C; three only if workloads runs Kubernetes. |
-| A9. Telemetry coverage | 0 | 6 | Core's Elastic Agent removed while workloads is rebuilt (superseded); the rest open. |
+| A6. Devcontainer | 2 | 1 | Core done; platform open. |
+| A7. Ansible secrets (platform) | 1 | 1 | Platform open, if it uses Ansible. |
+| A8. Investigation MCPs | 1 | 4 | Core's three done; GitHub Issues write waits for Phase C; three only if platform runs Kubernetes. |
+| A9. Telemetry coverage | 0 | 6 | Core's Elastic Agent removed until platform's design (superseded); the rest open. |
 | A10. Dry-run executor | 6 | 7 | Working: runner, `ci` identity, workflow, PR comments. Open: the fork test, the drill, and the five "later" items. The runner's telemetry superseded. |
 | Phase B. Detection | 0 | 5 | Not started. |
 | Phase C. Assisted investigation | 0 | 6 | Not started. |
@@ -152,8 +152,8 @@ can read state without being able to write it.
       devcontainer (see A7). Core first: its Packer template, and the
       `ci_ssh_key` role for existing VMs;
       the private half committed encrypted as `ci/ssh_ed25519.key.sops`.
-- [ ] **Workloads:** the same automation public key in its Packer template
-      and on its hosts, once its dry-run is ported (A10 "Later").
+- [ ] **Platform:** the same automation public key on its hosts, with its
+      dry-run (A10 "Later").
 - [x] `ci` principal for dry-runs: Proxmox `ci@pve!plan` (`AiAgentRO`),
       a `ci` age key, and `ci/dry-run.sops.yaml` (`TF_VAR_proxmox_api_token`,
       `TF_VAR_cipassword`, `TF_TOKEN_app_terraform_io`), encrypted to the
@@ -175,7 +175,7 @@ can read state without being able to write it.
       its approvals never count (`docs/SETUP.md`).
 - [ ] `ai-agent-scheduled` (RO) for unattended, alert-triggered
       investigation, with its own `labels.source: "ai-agent-scheduled"`.
-      Likely a headless container on a schedule (a CronJob, if workloads
+      Likely a headless container on a schedule (a CronJob, if platform
       ever runs a Kubernetes cluster).
 
 ### A2. Command audit trail
@@ -258,8 +258,8 @@ undecryptable by construction (a `$6$` hash can be cracked offline).
       secret, password, hash, private key, API key) never has a default
       and is always `sensitive`, with a commented allowlist for names that
       only look secret (`scripts/check_secret_variables.py`).
-- [ ] **Workloads classification:** the rebuilt repo starts with the same
-      rule and check.
+- [ ] **Platform classification:** the new repo starts with the same rule
+      and check.
 - ~~Done when: both repos pass `packer validate` / `tofu plan` on
   dummy defaults alone, and real secrets exist only in
   `~/.secrets/homelab.yaml` and CI.~~ Superseded: done for core when every
@@ -272,7 +272,7 @@ undecryptable by construction (a `$6$` hash can be cracked offline).
       becoming a recipient of `~/.secrets/homelab.yaml`: the runner never
       holds the human's shared write credentials. The `ai-agent` key stays
       a recipient of `homelab-ro.yaml` and `ai-agent-git.yaml` only.
-- [x] Workloads reuses the same two files and the same `mise run`
+- [ ] **Platform:** reuses the same two files and the same `mise run`
       task pattern, adding its own keys rather than duplicating values.
 
 ### A5. Host shell hygiene
@@ -281,18 +281,17 @@ undecryptable by construction (a `$6$` hash can be cracked offline).
       `TF_VAR_*` or `TF_TOKEN_*` into the shell (`~/.zshrc`, profile, mise
       env) — `docs/CREDENTIALS.md` step 7.
 
-### A6. Devcontainer: repo-scoped dry-run harness (core and workloads)
+### A6. Devcontainer: repo-scoped dry-run harness (core and platform)
 
 The agent runs in a devcontainer that starts from an empty environment,
 so it can't inherit the human's RW credentials from the shell. Use
 the AI agent's Dev Container Feature
 (`ghcr.io/anthropics/devcontainer-features/claude-code`).
 
-- [x] **Workloads:** the same devcontainer as core's (`.devcontainer/`,
-      `docs/DEVCONTAINER.md`), adding Terramate, kubectl and Helm to its
-      toolchain. Done with Terramate and the agent's GitHub identity
-      (`check:boundary` passes there); kubectl and Helm only if workloads
-      ever runs a Kubernetes cluster.
+- [ ] **Platform:** the same devcontainer as core's (`.devcontainer/`,
+      `docs/DEVCONTAINER.md`) and the agent's GitHub identity, adding to
+      its toolchain only what platform runs; `check:boundary` passes
+      there.
 - [x] Core: run the checks in `docs/DEVCONTAINER.md` ("Prove the
       boundary") in the container and confirm each behaves as described.
 - [x] Close the credentials the Dev Containers extension passes in by
@@ -304,18 +303,16 @@ the AI agent's Dev Container Feature
       container-only hooks (`core.hooksPath`). `check:boundary` proves
       each one.
 
-### A7. Ansible secrets: inventory-scoped SOPS (workloads)
+### A7. Ansible secrets: inventory-scoped SOPS (platform)
 
 `ansible-playbook --check --diff` still decrypts secrets to render
 templates, so this file is encrypted to the main age recipient (and `ci`),
 **never** to `ai-agent`. The agent's Ansible remit is `ansible-lint`,
 `--syntax-check` and reading playbooks.
 
-- [x] **Workloads:** same pattern as core — `community.sops` vars plugin
-      with `vars_stage = task`, per-group `group_vars/<group>.sops.yaml` —
-      for the Elastic passwords, the Fleet enrollment token and its own
-      Cloudflare token (Traefik). In place: `vars_stage = task`, and
-      `all.sops.yaml` holds the Elastic passwords.
+- [ ] **Platform:** the same pattern as core (`community.sops` vars
+      plugin, `vars_stage = task`, per-group `group_vars/<group>.sops.yaml`)
+      for its own secrets, if it uses Ansible.
 - [x] Ownership: the agent can do the wiring; putting real secret values
       in is a human edit.
 
@@ -329,17 +326,10 @@ attempting a mutating call and confirming it's refused.
       passing.
 - [ ] GitHub MCP: add **Issues: write** to its PAT only when Phase C
       starts filing issues; everything else stays read-only.
-- [x] Elastic MCP: API key with `cluster: [monitor]` and
-      `indices: [*]: [read, view_index_metadata]`. In workloads'
-      `.mcp.json`: `mcp-server-elasticsearch` (Agent Builder's MCP
-      endpoint needs Enterprise), its key in `homelab-ro.yaml`, with
-      `indices: [*]: [read, view_index_metadata, monitor]` (`monitor` for
-      the server's `_cat` tools); its `check:boundary` shows a write
-      refused.
-- [ ] Only if workloads runs Kubernetes: Kubernetes MCP, a dedicated RO ServiceAccount and `ClusterRole`
+- [ ] Only if platform runs Kubernetes: Kubernetes MCP, a dedicated RO ServiceAccount and `ClusterRole`
       (`get`/`list`/`watch` only) with its own kubeconfig. The human's
       kubeconfig stays full-access.
-- [ ] Only if workloads runs Kubernetes: ArgoCD MCP, a dedicated RO account (ArgoCD gates read vs. sync only
+- [ ] Only if platform runs Kubernetes: ArgoCD MCP, a dedicated RO account (ArgoCD gates read vs. sync only
       by RBAC):
 
       ```text
@@ -354,18 +344,17 @@ attempting a mutating call and confirming it's refused.
 - ~~**Core:** Fleet-managed Elastic Agent on every host in both repos,
       including core's `proxy`, `server01`, `runner01` and the Proxmox
       node `pve1`, installed by the Packer template and enrolled by
-      Ansible.~~ Superseded: workloads is being rebuilt, so core no longer
-      installs or enrolls an agent, and `pve1` is no longer in its
-      inventory. How core's hosts are observed comes back with the new
-      workloads design. The CoreDNS and Pi-hole secondaries run in QNAP
+      Ansible.~~ Superseded: core no longer installs or enrolls an agent,
+      and `pve1` is no longer in its inventory. How core's hosts are observed comes back
+      with platform's design. The CoreDNS and Pi-hole secondaries run in QNAP
       Container Station, outside Ansible: their logs need a decision then
       too.
-- [ ] **Workloads:** confirm every one of its hosts is enrolled.
+- [ ] **Platform:** confirm every one of its hosts reports its telemetry.
 - [ ] The QNAP secondaries' logs (CoreDNS and Pi-hole, above): decide how
       they reach Elastic.
 - [ ] CoreDNS metrics (`prometheus` plugin) and Caddy metrics/access logs
       into Elastic.
-- [ ] Only if workloads runs Kubernetes: K3s node/pod logs and metrics, including the cluster-wide
+- [ ] Only if platform runs Kubernetes: K3s node/pod logs and metrics, including the cluster-wide
       `elastic-agent` preset (Fleet mode runs one preset per release, so
       `perNode` and `clusterWide` need separate releases).
 - [ ] Auditd Manager on the Proxmox VMs: kernel-level ground truth for the
@@ -422,8 +411,8 @@ and the agent reads the result. Apply stays human-only.
       uploaded.
 - ~~Runner telemetry: Elastic Agent enrolled (A9) and the runner's
       `_diag` logs shipped, feeding the audit trail (A2).~~ Superseded with
-      A9's core item: no agent on `runner01` until the new workloads
-      design says how hosts are observed; the `_diag` logs
+      A9's core item: no agent on `runner01` until platform's design says
+      how hosts are observed; the `_diag` logs
       (`/opt/actions-runner/_diag/`) are the ones to ship then.
 - [ ] Done when: a PR touching `terraform/` and `ansible/` gets a plan and
       a check recap after the human approves, a fork PR never reaches the
@@ -435,10 +424,10 @@ and the agent reads the result. Apply stays human-only.
 
 Later, each only after the dry-run path has a track record:
 
-- [ ] Port the dry-run workflow to `homelab-proxmox-workloads`
-      (`terramate run --changed -- tofu plan`, its own check-mode fixes,
-      the `pki` role skipped, a read-only Elasticsearch/Kibana API key for
-      its `config` stacks).
+- [ ] Build the dry-run into `homelab-proxmox-platform` from its first
+      pull request: the same runner, `ci` identity and `dry-run`
+      environment, its own plan and check, and `check:runner` covering its
+      environment too.
 - [ ] CI apply: a separate `apply` environment and `ci@pve!apply`
       (`TofuApply`).
 - [ ] Ephemeral runners (JIT config, or ARC on the K3s cluster).
@@ -451,8 +440,8 @@ Later, each only after the dry-run path has a track record:
 ## Phase B — Detection (L0 → L1)
 
 Phases B to F mention Kubernetes (K3s, `kubectl`, ArgoCD) in places:
-those parts apply only if homelab-proxmox-workloads runs a cluster, which
-it doesn't today.
+those parts apply only if homelab-proxmox-platform runs a cluster, which
+isn't decided.
 
 - [ ] SLOs and error budgets first, so alerts page on user impact rather
       than raw anomalies. Starting set:
@@ -466,9 +455,9 @@ it doesn't today.
       backend-unreachable errors, CoreDNS/Pihole query failures or
       upstream unreachability, primary/secondary drift (SOA serial `.2`
       vs `.3`; config `.5` vs `.6`), host resource pressure.
-- [ ] Kibana rules for **workloads**: ES cluster yellow/red, node down,
-      disk watermark, APM error rate and latency, host CPU/memory/disk,
-      K3s node conditions (NotReady/DiskPressure/MemoryPressure), pod
+- [ ] Kibana rules for **platform**: the health of whatever it runs (for
+      example a cluster yellow/red, node down, disk watermark, error rate
+      and latency), host CPU/memory/disk, and if it runs Kubernetes, node conditions (NotReady/DiskPressure/MemoryPressure), pod
       states (CrashLoopBackOff/ImagePullBackOff/OOMKilled), ArgoCD app
       health (OutOfSync/Degraded).
 - [ ] Synthetic checks from a LAN vantage point, so detection doesn't

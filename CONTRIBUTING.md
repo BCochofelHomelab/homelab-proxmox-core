@@ -173,7 +173,7 @@ The tasks are named `<namespace>:<action>`:
 | Packer | The VM template ([`docs/PACKER.md`](docs/PACKER.md)). |
 | OpenTofu (`tofu`) | The VMs and the inventory ([`docs/TERRAFORM.md`](docs/TERRAFORM.md)); `terraform` is pinned only as a rollback path. |
 | Ansible, ansible-lint | Configuring the hosts ([`docs/ANSIBLE.md`](docs/ANSIBLE.md)); in `.venv/`, from `requirements.txt`. |
-| Terramate | Parity with homelab-proxmox-workloads; unused here. |
+| Terramate | Unused here for now. |
 | TFLint, terraform-docs, Trivy, Checkov | Linting, docs and policy for the OpenTofu code. |
 | ShellCheck, markdownlint-cli2, actionlint, zizmor | Shell scripts, Markdown, and GitHub workflows (lint and security). |
 | gitleaks | No secret committed: staged changes, and the full history in CI. |

@@ -21,8 +21,9 @@ What keeps it to read-only is `.claude/settings.json`:
 - its `env` block points SOPS and Ansible at the `ai-agent` key, so the
   commands it runs can only decrypt `homelab-ro.yaml`;
 - its deny rules block reading your key, `~/.secrets/` and the encrypted
-  inventory, every decrypting `sops` subcommand, and the read-write mise
-  tasks;
+  inventory, every decrypting `sops` subcommand, the read-write mise
+  tasks however they're invoked (`mise run`, `mise r`, `mise <task>`),
+  and `mise exec`, which could wrap any of them;
 - its ask rules make you approve every `apply`, `packer build` and
   `ansible-playbook`, and your clone's own `.claude/settings.local.json`
   every `git push` and `gh pr create` ([Two clones](#two-clones)).

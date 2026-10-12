@@ -10,12 +10,12 @@ settings, the dry-run runner, the red button); the README keeps day 2. The
 secret tiers live at the top of `docs/CREDENTIALS.md`. Change a manual
 setting, record it in `SETUP.md`.
 `docs/SRE-AI.md` is the homelab-wide SRE AI-autonomy roadmap and status
-(this repo + `homelab-proxmox-workloads`, whose copy only points here), and
+(this repo + `homelab-proxmox-platform`, whose copy only points here), and
 the only TODO list. Implemented items stay in it, ticked (`- [x]`), as a
 record — no dates, no incident notes; tick an item only once its checks
 (`docs/CREDENTIALS.md` step 7, `docs/DEVCONTAINER.md`, `check:runner`)
 have passed. Items spanning both repos are split into a core and a
-workloads line; superseded ones stay struck through with the reason.
+platform line; superseded ones stay struck through with the reason.
 Ticking an item also updates its row in the doc's *Where it stands* table. In those human-facing docs,
 say "the AI agent", not "Claude Code", except where the text is about
 the product itself (installing it, its hooks, skills or `.claude/` files).
@@ -44,7 +44,7 @@ Topology:
   `pve1.homelab.bcochofel.com` (the Proxmox VE web UI itself) and
   `ha.homelab.bcochofel.com` (Home Assistant on the Raspberry Pi 3) — see
   `ansible/inventory/group_vars/all.yml`'s `caddy_sites` for the live list.
-  Sites for `homelab-proxmox-workloads` backends are added the same way; a
+  Sites for `homelab-proxmox-platform` backends are added the same way; a
   backend with a private CA gets `trusted_ca` (`caddy_trusted_cas`, none
   today).
 - The `dns` VM (`192.168.68.15` VM management IP, Proxmox name/hostname
@@ -70,9 +70,9 @@ This repo is one of two that make up the homelab's overall architecture:
 - **`homelab-proxmox-core`** (this repo) — the Caddy reverse proxy and
   CoreDNS+Pihole DNS pair, i.e. edge routing and name resolution for
   everything else.
-- **`../homelab-proxmox-workloads`** — OpenTofu + Terramate; every
-  workload behind the edge. What runs there isn't decided yet, so don't
-  name specific services (Elastic, K3s, ...) when describing it.
+- **`../homelab-proxmox-platform`** — everything behind the edge. What
+  runs there, and with which tools, isn't decided yet, so don't name
+  specific services (Elastic, K3s, ...) when describing it.
 
 Both repos share the same conventions: SOPS secrets, HCP state, mise
 toolchain, Docker Compose service style.
@@ -108,7 +108,7 @@ toolchain, Docker Compose service style.
   issuer.
 - **One Cloudflare API token, scoped to the `bcochofel.com` zone, with DNS
   Write and Zone Read** (dashboard group *DNS and Zones*), dedicated to this repo — never shared with
-  `homelab-proxmox-workloads`, even though it's the same zone. Stored as
+  `homelab-proxmox-platform`, even though it's the same zone. Stored as
   `cloudflare_api_token` in `ansible/inventory/group_vars/caddy.sops.yaml`
   — only the `caddy` group needs it.
 - **The `*.homelab.bcochofel.com` hostnames are LAN-only.** The public
@@ -217,7 +217,7 @@ toolchain, Docker Compose service style.
   outside this repo's control.
 - **Packer builds `ubuntu-26.04`**, minimal: Docker only. No Elastic
   Agent and no enrollment (template README ADR-3, superseded): how core's
-  hosts are observed waits for the rebuilt `homelab-proxmox-workloads`
+  hosts are observed waits for `homelab-proxmox-platform`
   (`docs/SRE-AI.md` A9). No in-VM Trivy,
   no Alloy/system_report/custom-CA tooling. Trivy is used at the repo
   level to scan this repo's IaC (`.trivy.yaml`/`.trivyignore`,
@@ -478,8 +478,8 @@ summary.
   credentialed ones start through `sops exec-env ${HOME}/.secrets/homelab-ro.yaml`
   with `SOPS_AGE_KEY_FILE=${HOME}/.config/sops/age/ai-agent.txt`; no token
   is ever in `.mcp.json`. The devcontainer mounts the `ai-agent` key under
-  `/home/vscode` too so `${HOME}` resolves there. MCP servers for the
-  workloads belong to `homelab-proxmox-workloads`. Don't add a server, or
+  `/home/vscode` too so `${HOME}` resolves there. MCP servers for
+  what platform runs belong to `homelab-proxmox-platform`. Don't add a server, or
   give one a write credential, outside that step and `docs/SRE-AI.md`
   Phase A8.
 - Env var shapes: Packer `PKR_VAR_*`; OpenTofu `TF_VAR_proxmox_api_token`
@@ -515,7 +515,11 @@ infrastructure or touches the human's key needs a human. The committed
   task that uses the human or `ci` key (`packer:build`, `tofu:init|plan|apply`,
   `ci:plan`, `ci:check`,
   `ansible:site`, `ansible:runner`, `check:runner`, `sops`, `secrets:edit`,
-  `secrets:check`, `check:creds`);
+  `secrets:check`, `check:creds`), in every form mise runs a task:
+  `Bash(mise *<task>*)` catches `mise run`, `mise r`, the bare `mise
+  <task>`, `mise tasks run` and `mise watch` (the `sops` task, a plain
+  word, gets its own patterns); and `mise exec`/`mise x`, which could wrap
+  any denied command (`mise x -- sops -d ...`);
   `terraform`/`tofu destroy`; running the credential helper or `git
   credential`; force/deleting pushes; `gh auth`, `gh pr merge`, `gh pr
   review`, `gh release`, `gh repo delete`, `gh secret`, `gh variable`,
