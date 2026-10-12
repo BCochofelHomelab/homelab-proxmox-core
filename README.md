@@ -44,6 +44,21 @@ This repo is one of two that make up the homelab:
 - **[`homelab-proxmox-platform`](https://github.com/BCochofelHomelab/homelab-proxmox-platform)**
   — everything that runs behind it.
 
+### The tools
+
+| Tool | What it does here |
+| --- | --- |
+| [Proxmox VE](https://www.proxmox.com/en/proxmox-virtual-environment) | The hypervisor every VM runs on. |
+| [Packer](https://developer.hashicorp.com/packer) | Builds the Ubuntu VM template once, so every VM starts from the same image. |
+| [OpenTofu](https://opentofu.org) (`tofu`) | Creates the VMs from that template, and writes the Ansible inventory. The open-source fork of Terraform. |
+| [HCP Terraform](https://developer.hashicorp.com/terraform/cloud-docs) | HashiCorp Cloud Platform's Terraform service, used only to store OpenTofu's state (what it created), so it isn't kept on one laptop. |
+| [Ansible](https://docs.ansible.com) | Configures the VMs: Docker Compose services for Caddy, CoreDNS and Pi-hole. |
+| [mise](https://mise.jdx.dev) | Installs every command-line tool at a pinned version, and runs the repo's commands as tasks (`mise run <task>`). |
+| [SOPS](https://getsops.io) and [age](https://age-encryption.org) | Secrets stay encrypted in files: SOPS encrypts and decrypts them, with age keys. Each person or machine has its own age key, and each file opens only with the keys it was encrypted to. |
+| [GitHub Actions](https://docs.github.com/actions) | Checks every pull request, and dry-runs it on a self-hosted runner on the LAN. |
+| [Claude Code](https://code.claude.com/docs), the AI agent | Proposes changes as pull requests. It works under its own identities, never the user's: a GitHub machine user (`bcochofel-ai-agent`) that pushes branches and opens pull requests, and read-only Proxmox and GitHub tokens. Reviewing, merging and applying stay with the user. |
+| [Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers) | A VS Code extension. It runs the AI agent in a devcontainer that holds only the agent's credentials, so the user's are out of reach. |
+
 ### Why it's built this way
 
 Both repos follow Google's
@@ -54,11 +69,11 @@ Much of what may look like extra ceremony here follows from that:
 
 | Guideline from the paper | How it shows up in this repo |
 | --- | --- |
-| No ambient access | Nothing is exported into your shell; each `mise run` task decrypts one file for one command ([`docs/CREDENTIALS.md`](docs/CREDENTIALS.md)). |
-| Least privilege, one identity per role | Separate Proxmox tokens for Packer, for applying, and for the agent's read-only work. The agent has no HCP token at all: the Free plan can't issue a read-only one. |
+| No ambient access | Nothing is exported into your shell; each mise task decrypts one SOPS file for one command ([`docs/CREDENTIALS.md`](docs/CREDENTIALS.md)). |
+| Least privilege, one identity per role | Separate Proxmox tokens for Packer, for applying, and for the agent's read-only work. The agent has no HCP Terraform token at all: the Free plan can't issue a read-only one. |
 | The agent reads, humans change | The agent has only the `ai-agent` age key, which opens the read-only credentials and nothing else. |
 | Dry-run before any change | Every pull request touching `terraform/` or `ansible/` gets `tofu plan` and `ansible-playbook --check` on a self-hosted runner, after your approval; apply stays a human step ([`docs/SETUP.md`](docs/SETUP.md#stage-8-the-dry-run-runner-optional)). |
-| Boundaries enforced by construction | The devcontainer holds only the read-only credentials ([`docs/DEVCONTAINER.md`](docs/DEVCONTAINER.md)). |
+| Boundaries enforced by construction | The AI agent's devcontainer holds only the read-only credentials ([`docs/DEVCONTAINER.md`](docs/DEVCONTAINER.md)). |
 
 The roadmap for the rest of the paper (audit trail, alerting, the
 autonomy levels from assisted investigation to bounded auto-remediation)
@@ -367,5 +382,7 @@ endpoint (`:9153`), not a dashboard.
   follow
 - [semantic-release](https://semantic-release.gitbook.io/) — computes and
   publishes releases from the commit history
+- [mise](https://mise.jdx.dev/) — the pinned toolchain (`mise.toml`) and
+  the repo's tasks (`mise run <task>`)
 - [pre-commit](https://pre-commit.com/) — the git hook framework running
   the checks in `.pre-commit-config.yaml`

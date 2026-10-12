@@ -114,7 +114,7 @@ infrastructure: it pushes branches and opens pull requests as its machine
 user, and the human applies; the audit trail (`labels.source`, A2)
 attributes who ran what.
 
-| Principal | Proxmox | HCP | MCP | Allowed |
+| Principal | Proxmox | HCP Terraform | MCP | Allowed |
 | --- | --- | --- | --- | --- |
 | `ai-agent` | `ai-agent@pve!ai-agent` **RO** | none until a RO state credential exists (below) | investigation MCPs (RO) | fmt/lint/validate; RO investigation; **plan** once it has RO state access |
 | `terraform` | `terraform@pve!terraform` **RW** | RW | none | everything incl. **apply** |
