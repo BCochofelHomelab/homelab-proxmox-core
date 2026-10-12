@@ -261,6 +261,14 @@ Always in this order, from your clone, on `main`.
    mise run tofu:apply     # applies exactly that plan
    ```
 
+   Rebuilding VMs that existed before: each new VM has a new SSH host
+   key, and your `~/.ssh/known_hosts` still holds the old one, so SSH
+   (and `check:runner`) refuses to connect. Forget the old keys first:
+
+   ```bash
+   for h in proxy server01 runner01; do ssh-keygen -R "$h.homelab.bcochofel.com"; done
+   ```
+
 3. **The configuration** ([`ANSIBLE.md`](ANSIBLE.md)):
 
    ```bash
@@ -448,6 +456,15 @@ local registration first, then repeat step 3:
 ```bash
 ssh ubuntu@runner01.homelab.bcochofel.com \
   'sudo rm -f /opt/actions-runner/.runner /opt/actions-runner/.credentials /opt/actions-runner/.credentials_rsaparams'
+```
+
+**A dry-run job waits for a runner** while `runner01` shows *Online* and
+idle (*Organization settings → Actions → Runners*): its session with
+GitHub has gone stale. Restart the service; it takes the queued job within
+seconds. `check:runner` can't catch this, since the service is running:
+
+```bash
+ssh ubuntu@runner01.homelab.bcochofel.com 'sudo systemctl restart "actions.runner.*"'
 ```
 
 ### The `ci` identity
