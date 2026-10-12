@@ -49,7 +49,7 @@ Update this table whenever an item is ticked.
 | A7. Ansible secrets (platform) | 1 | 1 | Platform open, if it uses Ansible. |
 | A8. Investigation MCPs | 1 | 4 | Core's three done; GitHub Issues write waits for Phase C; three only if platform runs Kubernetes. |
 | A9. Telemetry coverage | 0 | 6 | Core's Elastic Agent removed until platform's design (superseded); the rest open. |
-| A10. Dry-run executor | 6 | 7 | Working: runner, `ci` identity, workflow, PR comments. Open: the fork test, the drill, and the five "later" items. The runner's telemetry superseded. |
+| A10. Dry-run executor | 7 | 6 | Working and proven: runner, `ci` identity, workflow, PR comments, a fork's pull request never reaching the runner. Open: the drill, and the five "later" items. The runner's telemetry superseded. |
 | Phase B. Detection | 0 | 5 | Not started. |
 | Phase C. Assisted investigation | 0 | 6 | Not started. |
 | Phase D. Evaluation data | 0 | 4 | Not started. |
@@ -414,11 +414,12 @@ and the agent reads the result. Apply stays human-only.
       A9's core item: no agent on `runner01` until platform's design says
       how hosts are observed; the `_diag` logs
       (`/opt/actions-runner/_diag/`) are the ones to ship then.
-- [ ] Done when: a PR touching `terraform/` and `ansible/` gets a plan and
+- [x] Done when: a PR touching `terraform/` and `ansible/` gets a plan and
       a check recap after the human approves, a fork PR never reaches the
-      runner, and `check:boundary` / `check:runner` pass. All but the fork
-      test: open a pull request from a fork and confirm *What changed* is
-      skipped.
+      runner, and `check:boundary` / `check:runner` pass. The fork test: a
+      pull request from an account outside the organization waited for
+      approval, then skipped all four *Dry-run* jobs, with no deployment
+      and no runner.
 - [ ] The red button drill ([`SETUP.md`](SETUP.md#drill)): once, then every
       quarter.
 

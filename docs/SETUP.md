@@ -654,19 +654,26 @@ pull request's dry-run never starts, and `gh pr checks` still works
 
 ## Final verification
 
-The same place as before, when all of these hold:
+Everything is in place when all of these hold. Run them from your WSL
+clone, on `main`: they need your key, or the `ci` key, which only WSL
+has.
 
 ```bash
 mise run doctor           # no problems
 mise run secrets:check    # every line ok
 mise run check:creds      # every line ok
-mise run check:boundary   # every line ok (and in the devcontainer, stage 7)
+mise run check:boundary   # every line ok: the soft boundary on WSL
 mise run tofu:plan        # No changes
 mise run ansible:site     # failed=0 everywhere; all external dependencies ready
 mise run check:runner     # every line ok (stage 8)
 mise run ci:plan     # No changes (stage 8)
 mise run ci:check    # failed=0 (stage 8)
 ```
+
+Then, in the AI agent's devcontainer (stage 7), run `mise run
+check:boundary` once more. There it checks the hard boundary: no key but
+the AI agent's, git and `gh` acting only as the machine user, and a
+workflow push refused.
 
 And, on GitHub: [stage 2's checks](#check-it) match its tables, and a
 test pull request touching `ansible/` gets its dry-run comment after your
