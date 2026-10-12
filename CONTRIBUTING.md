@@ -21,7 +21,7 @@ flowchart LR
   ci -. failures .-> agent
   review --> release["Release<br/>(tag + notes)"]
   release --> apply["Apply<br/>(your WSL clone)"]
-  apply --> verify["Verify<br/>(health check, Fleet)"]
+  apply --> verify["Verify<br/>(health check)"]
 ```
 
 **The AI agent's lane**, in its devcontainer
@@ -77,8 +77,7 @@ first (VMs and inventory), then Ansible.
 
 **Verify.** `site.yml` ends with the health check (`99-healthcheck.yml`):
 what this repo deploys fails the run, external dependencies are reported.
-Then Fleet and Kibana for the hosts you touched. A problem means a new pull
-request, never a live edit on a host.
+A problem means a new pull request, never a live edit on a host.
 
 ## Branches
 
@@ -173,8 +172,7 @@ Pinned elsewhere, in their own ecosystem's file: Ansible and ansible-lint
 (`ansible/requirements.yml`, minimums), the pre-commit hook repositories
 (`.pre-commit-config.yaml`), semantic-release (`package-lock.json`), the
 OpenTofu providers (`.terraform.lock.hcl`), Packer's Proxmox plugin
-(`versions.pkr.hcl`, minimum), the template's Elastic Agent
-(`elastic_agent_version`), the devcontainer image
+(`versions.pkr.hcl`, minimum), the devcontainer image
 (`devcontainer.json`), and the workflows' actions (commit SHAs).
 
 **Bumping a version.** Nothing updates on its own: no Dependabot, no

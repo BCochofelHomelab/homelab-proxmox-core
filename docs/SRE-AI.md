@@ -48,8 +48,8 @@ Update this table whenever an item is ticked.
 | A6. Devcontainer | 3 | 0 | Done in both repos. |
 | A7. Ansible secrets (workloads) | 2 | 0 | Done. |
 | A8. Investigation MCPs | 2 | 4 | Core's three and Elastic done; GitHub Issues write waits for Phase C; three only if workloads runs Kubernetes. |
-| A9. Telemetry coverage | 1 | 6 | Elastic Agent on core's hosts; the rest open. |
-| A10. Dry-run executor | 6 | 8 | Working: runner, `ci` identity, workflow, PR comments. Open: the runner's telemetry, the fork test, the drill, and the five "later" items. |
+| A9. Telemetry coverage | 0 | 6 | Core's Elastic Agent removed while workloads is rebuilt (superseded); the rest open. |
+| A10. Dry-run executor | 6 | 7 | Working: runner, `ci` identity, workflow, PR comments. Open: the fork test, the drill, and the five "later" items. The runner's telemetry superseded. |
 | Phase B. Detection | 0 | 5 | Not started. |
 | Phase C. Assisted investigation | 0 | 6 | Not started. |
 | Phase D. Evaluation data | 0 | 4 | Not started. |
@@ -150,7 +150,7 @@ can read state without being able to write it.
       added to both repos' Packer templates next to the human's key,
       reserved for the CI runner. It is **not** given to the `ai-agent`
       devcontainer (see A7). Core first: its Packer template, and the
-      `ci_ssh_key` role for existing VMs and the Proxmox nodes' `ansible` user;
+      `ci_ssh_key` role for existing VMs;
       the private half committed encrypted as `ci/ssh_ed25519.key.sops`.
 - [ ] **Workloads:** the same automation public key in its Packer template
       and on its hosts, once its dry-run is ported (A10 "Later").
@@ -345,17 +345,15 @@ attempting a mutating call and confirming it's refused.
 
 ### A9. Telemetry coverage
 
-- [x] **Core:** Fleet-managed Elastic Agent on every host in both repos, including
-      core's `proxy` and `server01`. Done for core: `proxy`, `server01`,
-      `runner01` and the Proxmox node `pve1` are enrolled (`site.yml`'s
-      health check). Core's Packer template already
-      installs it (tarball via `elastic-agent install`, Fleet-upgradable,
-      not enrolled, service disabled); what's
-      left is an Ansible playbook that runs `elastic-agent enroll` with a
-      Fleet enrollment token and enables the service. The CoreDNS and Pi-hole secondaries
-      run in QNAP Container Station, outside Ansible: decide how their
-      logs reach Elastic (an agent on the NAS, or shipping the container
-      logs).
+- ~~**Core:** Fleet-managed Elastic Agent on every host in both repos,
+      including core's `proxy`, `server01`, `runner01` and the Proxmox
+      node `pve1`, installed by the Packer template and enrolled by
+      Ansible.~~ Superseded: workloads is being rebuilt, so core no longer
+      installs or enrolls an agent, and `pve1` is no longer in its
+      inventory. How core's hosts are observed comes back with the new
+      workloads design. The CoreDNS and Pi-hole secondaries run in QNAP
+      Container Station, outside Ansible: their logs need a decision then
+      too.
 - [ ] **Workloads:** confirm every one of its hosts is enrolled.
 - [ ] The QNAP secondaries' logs (CoreDNS and Pi-hole, above): decide how
       they reach Elastic.
@@ -416,10 +414,11 @@ and the agent reads the result. Apply stays human-only.
       the full output age-encrypted to the human + `ai-agent` keys as a
       short-retention artifact (`docs/SETUP.md`). `tfplan` is never
       uploaded.
-- [ ] Runner telemetry: Elastic Agent enrolled (A9) and the runner's
-      `_diag` logs shipped, feeding the audit trail (A2). Enrolled, in
-      `homelab-core`; still to do in workloads: its own Fleet policy (no
-      Docker integration) with the `_diag` logs.
+- ~~Runner telemetry: Elastic Agent enrolled (A9) and the runner's
+      `_diag` logs shipped, feeding the audit trail (A2).~~ Superseded with
+      A9's core item: no agent on `runner01` until the new workloads
+      design says how hosts are observed; the `_diag` logs
+      (`/opt/actions-runner/_diag/`) are the ones to ship then.
 - [ ] Done when: a PR touching `terraform/` and `ansible/` gets a plan and
       a check recap after the human approves, a fork PR never reaches the
       runner, and `boundary:check` / `runner:check` pass. All but the fork

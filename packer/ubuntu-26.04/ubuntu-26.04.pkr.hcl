@@ -129,9 +129,7 @@ build {
   # -----------------------
   provisioner "shell" {
     environment_vars = [
-      "INSTALL_DOCKER=${var.install_docker}",
-      "INSTALL_ELASTIC_AGENT=${var.install_elastic_agent}",
-      "ELASTIC_AGENT_VERSION=${var.elastic_agent_version}"
+      "INSTALL_DOCKER=${var.install_docker}"
     ]
     # `sudo -E` is rejected outright by this image's sudo policy ("preserving
     # the entire environment is not supported, '-E' is ignored"), so none of
@@ -141,12 +139,10 @@ build {
     execute_command = "sudo {{ .Vars }} bash '{{ .Path }}'"
     # Use absolute paths under /tmp/scripts so it's clear where they run from
     # NN- prefixes are the provisioner order (see ADR-1): initrd network fix
-    # first (no dependency on anything else), then Docker, then Elastic
-    # Agent (installed, not enrolled, service disabled — see ADR-3).
+    # first (no dependency on anything else), then Docker.
     scripts = [
       "${path.root}/scripts/15-fix-initrd-network.sh",
-      "${path.root}/scripts/20-install-docker.sh",
-      "${path.root}/scripts/30-install-elastic-agent.sh"
+      "${path.root}/scripts/20-install-docker.sh"
     ]
   }
 

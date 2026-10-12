@@ -1,9 +1,8 @@
-# Packer — Ubuntu 26.04 + Docker + Elastic Agent template
+# Packer — Ubuntu 26.04 + Docker template
 
 Minimal cloud-init-ready Ubuntu 26.04 template with Docker + Compose plugin
-baked in, plus Elastic Agent installed but not enrolled and its service
-disabled (ADR-3) — both VMs in this repo (`proxy`/Caddy and `dns`/CoreDNS+Pihole)
-clone from this same template. Deliberately stripped down: no proxy
+baked in — every VM in this repo (`proxy`/Caddy, `dns`/CoreDNS+Pihole and
+the dry-run runner `runner01`) clones from this same template. Deliberately stripped down: no proxy
 support, no custom CA import, no
 security-scanning tooling (AIDE, rkhunter, chkrootkit, lynis, auditd) and no
 in-VM vulnerability scanning (Trivy). SSH hardening and unattended-upgrades
@@ -16,11 +15,9 @@ cd packer/ubuntu-26.04
 mise run packer:build   # packer init + build; credentials: docs/CREDENTIALS.md
 ```
 
-Provisioning runs three scripts in order, then seals the template:
+Provisioning runs two scripts in order, then seals the template:
 `scripts/15-fix-initrd-network.sh` (no networking in the initrd — see
-ADR-2), `scripts/20-install-docker.sh` (Docker CE + Compose) and
-`scripts/30-install-elastic-agent.sh` (Elastic Agent, not enrolled,
-service disabled — see ADR-3).
+ADR-2) and `scripts/20-install-docker.sh` (Docker CE + Compose).
 `scripts/99-cleanup-seal.sh` runs last and seals the template.
 
 Proxmox user/token setup is shared with the rest of this pipeline — see
@@ -34,15 +31,14 @@ instead of guessing.
 A `proxmox-iso` source boots an Ubuntu 26.04 Server ISO, autoinstalls via
 cloud-init (`http/user-data.yml.tpl` + `http/meta-data.yml` served over the
 Packer HTTP server), then the initrd is stripped of networking, Docker is
-installed and Elastic Agent is installed but left disabled — before the image is sealed and converted to a Proxmox template.
-Terraform later clones this template for both the `proxy` and `dns` VMs
+installed — before the image is sealed and converted to a Proxmox template.
+Terraform later clones this template for every VM
 (see `docs/TERRAFORM.md`).
 
 ```text
 ISO boot --autoinstall--> cloud-init (users, disk layout, packages,
   sysctl/limits, SSH hardening)
     --provisioners--> initrd network fix --> Docker install
-                      --> Elastic Agent install (not enrolled, disabled)
         --provisioners--> cleanup & seal
 ```
 
@@ -58,7 +54,6 @@ ISO boot --autoinstall--> cloud-init (users, disk layout, packages,
 | `http/meta-data.yml` | cloud-init meta-data (mostly empty; required by the datasource) |
 | `scripts/15-fix-initrd-network.sh` | Omits dracut's network modules so nothing DHCPs the NIC before cloud-init's netplan config runs (see ADR-2) |
 | `scripts/20-install-docker.sh` | Docker CE + Compose plugin, qemu-guest-agent |
-| `scripts/30-install-elastic-agent.sh` | Elastic Agent from Elastic's signed tarball via `elastic-agent install` (Fleet-upgradable), not enrolled, service disabled and stopped (see ADR-3) |
 | `scripts/99-cleanup-seal.sh` | Strips machine-id/SSH host keys/logs/cloud-init state and the build VM's static network (see ADR-4) before conversion to template |
 
 ## Decisions (ADRs)
@@ -111,37 +106,14 @@ rather than silently shipping a template with the bug still latent — this
 class of failure only shows up after a real `terraform apply`, so it's
 worth catching at build time.
 
-### ADR-3: Elastic Agent baked in, not enrolled, service disabled
+### ADR-3: Elastic Agent baked in, not enrolled (superseded)
 
-**Context.** Both VMs will be monitored by a Fleet-managed Elastic Agent
-once an Elastic stack exists (`homelab-proxmox-workloads`). Installing the
-agent in the template means every clone already has it; enrolling it there
-would bake one Fleet identity into every clone, and there's nothing to
-enroll into yet.
-
-**Decision.** `scripts/30-install-elastic-agent.sh` downloads Elastic's
-**Linux tarball** at the exact `elastic_agent_version`, verifies its GPG
-signature (signing key checked by fingerprint) and SHA-512, and runs
-`elastic-agent install --non-interactive` without `--url`: the agent lands
-in `/opt/Elastic/Agent` with an `elastic-agent.service` unit and briefly
-starts standalone. The script then disables and stops the service. The
-build fails if the service is still enabled or running, or if the
-installed binary isn't the pinned version.
-
-**Consequences.**
-
-- Clones boot with the agent inert. A later Ansible playbook enrolls each
-  host (`elastic-agent enroll` on the installed agent) and enables the
-  service.
-- **Fleet manages upgrades** (a tarball install running as a service is
-  Fleet-upgradable; a DEB isn't). `elastic_agent_version` only sets the
-  version a fresh clone starts at; after enrollment the running version
-  follows Fleet, outside this repo's pins. Bump it now and then so new
-  clones don't start far behind.
-- No APT repo or package: unattended-upgrades and `apt upgrade` never touch
-  the agent, and removal is `elastic-agent uninstall`, not `apt remove`.
-- The agent's version must not be newer than the Elastic stack it enrolls
-  into.
+**Superseded:** the template no longer installs Elastic Agent. It was
+installed, not enrolled, for `homelab-proxmox-workloads`' Fleet to enroll
+later; that repo is being rebuilt, and how its new version observes the
+hosts is its own decision, so this template carries nothing for it.
+`scripts/30-install-elastic-agent.sh`, `install_elastic_agent` and
+`elastic_agent_version` were removed. The number stays taken.
 
 ### ADR-4: The build VM uses a static IP, not DHCP
 
@@ -204,7 +176,7 @@ Required (no default — set as `PKR_VAR_*` env):
 Everything else (VM sizing, packages, timezone, NTP, the build VM's static
 network `build_ip_cidr`/`build_gateway`/`build_nameservers` (ADR-4),
 `ssh_private_key_file`, `ssh_authorized_keys`, `additional_users`,
-`install_docker`, `install_elastic_agent`, `elastic_agent_version`, …) has
+`install_docker`, …) has
 a default in `variables.pkr.hcl`: change a value by changing its default
 ([`docs/PACKER.md`](../../docs/PACKER.md#configuration-defaults-and-secrets)).
 

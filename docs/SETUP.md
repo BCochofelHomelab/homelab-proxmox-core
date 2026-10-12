@@ -221,7 +221,7 @@ on the node lists `TofuApply`'s privileges.
 2. **`~/.secrets/`** (step 5): `homelab.yaml` and `homelab-ro.yaml` (and
    `ai-agent-git.yaml` in stage 7), with `~/.secrets/.sops.yaml`.
 3. **The inventory secrets** (step 5), committed and encrypted:
-   `caddy.sops.yaml`, `pihole.sops.yaml`, `all.sops.yaml`. Rebuilding with
+   `caddy.sops.yaml` and `pihole.sops.yaml`. Rebuilding with
    the same age keys, the committed files still open: nothing to redo.
 4. **`.claude/settings.json`** (step 6) points at
    `/home/bcochofel/.config/sops/age/ai-agent.txt`.
@@ -253,19 +253,10 @@ Always in this order, from your clone, on `main`.
    mise run tofu:apply     # applies exactly that plan
    ```
 
-3. **The configuration** ([`ANSIBLE.md`](ANSIBLE.md)). The Elastic Agent
-   play needs homelab-proxmox-workloads' Fleet: its enrollment tokens are
-   `fleet_enrollment_tokens` in `all.sops.yaml`. On a rebuild where
-   workloads isn't up yet, run the playbooks before it on their own, and
-   the whole of `site.yml` once Fleet exists:
+3. **The configuration** ([`ANSIBLE.md`](ANSIBLE.md)):
 
    ```bash
-   cd ansible
-   for p in 00-bootstrap 01-ci-ssh-key 05-dns 10-caddy; do
-     ANSIBLE_SOPS_AGE_KEYFILE=~/.config/sops/age/bcochofel.txt ansible-playbook "playbooks/$p.yml" || break
-   done
-   cd ..
-   mise run ansible:site   # everything, once workloads' Fleet is up
+   mise run ansible:site
    ```
 
 **Check:** `mise run tofu:plan` shows *No changes*, and `ansible:site`
@@ -439,8 +430,10 @@ In this order:
    then posts its comment. A fork's pull request must skip *What changed*
    and reach nothing.
 
-To register the runner again (after removing it from GitHub, or the red
-button), delete its registration first, then repeat step 3:
+A rebuilt `runner01` (a new VM) just repeats step 3: it replaces its old
+registration in GitHub (`config.sh --replace`). To register the same VM
+again (after removing it from GitHub, or the red button), delete its
+local registration first, then repeat step 3:
 
 ```bash
 ssh ubuntu@runner01.homelab.bcochofel.com \
@@ -453,7 +446,7 @@ ssh ubuntu@runner01.homelab.bcochofel.com \
 | --- | --- | --- |
 | Proxmox | `ci@pve!plan`, role `AiAgentRO` | Read-only: Proxmox refuses a write. |
 | HCP Terraform | an `owners` team token | Can write state (the Free plan has no read-only token): an accepted risk, limited to this organization, used only in a job you approved that only plans. |
-| SSH | the automation key, next to yours on every VM and the Proxmox `ansible` user | Root-equivalent, like yours: used only by `ansible:check`, never in the devcontainer. |
+| SSH | the automation key, next to yours on every VM | Root-equivalent, like yours: used only by `ansible:check`, never in the devcontainer. |
 | SOPS | the `ci` age key: `ci/`, the inventory files | Never a recipient of `~/.secrets/`. |
 | GitHub | `CI_AGE_KEY`, a `dry-run` environment secret | The only secret GitHub holds; the job hands it to SOPS as `SOPS_AGE_KEY`, never written to disk. |
 
@@ -472,9 +465,6 @@ ssh ubuntu@runner01.homelab.bcochofel.com \
 - **Self-update on:** the `github_runner` role installs a pinned,
   checksum-verified version once; the runner updates itself after that,
   since GitHub stops sending jobs to runners it considers too old.
-- **Telemetry:** its Elastic Agent is in `homelab-core` like every VM; its
-  own Fleet policy (no Docker integration, the runner's `_diag` logs) is
-  homelab-proxmox-workloads' to define.
 
 ### Why *All workflows*
 
@@ -616,7 +606,7 @@ Level 1 first, then:
 | --- | --- | --- |
 | The machine user's token | *Organization settings → Personal access tokens → Active tokens* → revoke | A new token in `ai-agent-git.yaml` ([stage 7](#the-machine-user-and-its-token)) |
 | The `ai-agent` age key | Remove it from `~/.secrets/.sops.yaml` and `dry-run.yml`; `updatekeys` `homelab-ro.yaml` and `ai-agent-git.yaml` | Everything in those two files: the `ai-agent@pve` token, the read-only GitHub token, the machine user's token |
-| The `ci` age key | Delete `CI_AGE_KEY`; remove the `ci` recipient from `.sops.yaml` and `updatekeys` its files | Everything it could open: the Cloudflare token, the Pi-hole password, the Fleet tokens, `ci@pve!plan`, the HCP team token, `cipassword`, the automation SSH key (and its public half on every host) |
+| The `ci` age key | Delete `CI_AGE_KEY`; remove the `ci` recipient from `.sops.yaml` and `updatekeys` its files | Everything it could open: the Cloudflare token, the Pi-hole password, `ci@pve!plan`, the HCP team token, `cipassword`, the automation SSH key (and its public half on every host) |
 | `runner01` | Treat it as compromised: destroy it and rebuild it from the template | The `ci` row |
 
 Afterwards: `mise run secrets:check`, `creds:check`, `boundary:check` and

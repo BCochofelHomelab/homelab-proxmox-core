@@ -284,8 +284,8 @@ endpoint (`:9153`), not a dashboard.
 ## Verify
 
 - `https://nas.homelab.bcochofel.com`, `https://www.homelab.bcochofel.com`,
-  `https://pve1.homelab.bcochofel.com`, `https://ha.homelab.bcochofel.com`,
-  `https://kibana.homelab.bcochofel.com` — each should present a real Let's Encrypt certificate (issued by Caddy
+  `https://pve1.homelab.bcochofel.com`, `https://ha.homelab.bcochofel.com`
+  — each should present a real Let's Encrypt certificate (issued by Caddy
   itself) and proxy to its backend. The backends are external
   dependencies; Home Assistant needs a one-time proxy setting first, see
   [`docs/EXTERNAL-DEPENDENCIES.md`](docs/EXTERNAL-DEPENDENCIES.md#home-assistant).
@@ -321,13 +321,11 @@ endpoint (`:9153`), not a dashboard.
   blocklist sync) — a primary on `server01` (macvlan, Ansible-managed) and
   a secondary in QNAP Container Station (set up by hand).
 - **Inventory:** only `ansible/inventory/hosts.ini` is generated.
-  `ansible/inventory/group_vars/` and `proxmox.ini` (the Proxmox nodes)
-  are hand-authored and never overwritten.
+  `ansible/inventory/group_vars/` is hand-authored and never overwritten.
 - **Decoupling:** Terraform and Ansible are run as separate, explicit
   commands — no `local-exec` chaining, no mise task wrapping either
   write step.
-- **Template:** `ubuntu-26.04`, minimal: Docker, plus Elastic Agent installed
-  but not enrolled and disabled until there's a stack to enroll into.
+- **Template:** `ubuntu-26.04`, minimal: Docker only.
 
 ## Documentation
 
