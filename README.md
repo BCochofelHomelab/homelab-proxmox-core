@@ -56,7 +56,7 @@ This repo is one of two that make up the homelab:
 | [mise](https://mise.jdx.dev) | Installs every command-line tool at a pinned version, and runs the repo's commands as tasks (`mise run <task>`). |
 | [SOPS](https://getsops.io) and [age](https://age-encryption.org) | Secrets stay encrypted in files: SOPS encrypts and decrypts them, with age keys. Each person or machine has its own age key, and each file opens only with the keys it was encrypted to. |
 | [GitHub Actions](https://docs.github.com/actions) | Checks every pull request, and dry-runs it on a self-hosted runner on the LAN. |
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code), the AI agent | Proposes changes as pull requests. It works under its own identities, never the user's: a GitHub machine user (`bcochofel-ai-agent`) that can push branches and open pull requests but not merge, and read-only Proxmox and GitHub tokens. |
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code), the AI agent | Proposes changes as pull requests. It works under its own identities, never the user's: a GitHub machine user (`bcochofel-ai-agent`) that pushes branches and opens pull requests, and read-only Proxmox and GitHub tokens. Reviewing, merging and applying stay with the user. |
 | [Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers) | A VS Code extension. It runs the AI agent in a devcontainer that holds only the agent's credentials, so the user's are out of reach. |
 
 ### Why it's built this way
