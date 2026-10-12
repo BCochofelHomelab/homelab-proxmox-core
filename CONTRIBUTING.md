@@ -158,6 +158,16 @@ devcontainer run the same versions (CI and the devcontainer install in
 locked mode). `mise tasks` lists the repo's commands; `mise run doctor`
 shows what's installed.
 
+The tasks are named `<namespace>:<action>`:
+
+| Namespace | For |
+| --- | --- |
+| `setup:` | Installing: hooks, TFLint plugins, `.venv/`, the MCP servers. |
+| `lint`, `lint:secrets`, `check` | The checks that need no credentials; `check` is both, what CI runs. |
+| `check:` | Verifying the credentials, the AI agent's boundary and the runner. |
+| `packer:`, `tofu:`, `ansible:`, `secrets:` | Your credentialed commands, one namespace per tool. |
+| `ci:` | The dry-run, as the `ci` identity. |
+
 | Tool | For |
 | --- | --- |
 | Packer | The VM template ([`docs/PACKER.md`](docs/PACKER.md)). |

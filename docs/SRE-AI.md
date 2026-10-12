@@ -23,9 +23,9 @@ that.
 - `[x]` implemented and verified. Ticked items stay, as a record. Tick an
   item only once the check that proves it has passed: credential and
   boundary items by [`CREDENTIALS.md`](CREDENTIALS.md) step 7 (`mise run
-  secrets:check`, `creds:check`, `boundary:check`), devcontainer items by
+  secrets:check`, `check:creds`, `check:boundary`), devcontainer items by
   [`DEVCONTAINER.md`](DEVCONTAINER.md) ("Prove the boundary"), the dry-run
-  by `mise run runner:check`. Re-run them to confirm a ticked item still
+  by `mise run check:runner`. Re-run them to confirm a ticked item still
   holds.
 - `[ ]` still to do.
 - ~~Struck through~~: superseded by a later decision, kept with the reason.
@@ -291,7 +291,7 @@ the AI agent's Dev Container Feature
 - [x] **Workloads:** the same devcontainer as core's (`.devcontainer/`,
       `docs/DEVCONTAINER.md`), adding Terramate, kubectl and Helm to its
       toolchain. Done with Terramate and the agent's GitHub identity
-      (`boundary:check` passes there); kubectl and Helm only if workloads
+      (`check:boundary` passes there); kubectl and Helm only if workloads
       ever runs a Kubernetes cluster.
 - [x] Core: run the checks in `docs/DEVCONTAINER.md` ("Prove the
       boundary") in the container and confirm each behaves as described.
@@ -301,7 +301,7 @@ the AI agent's Dev Container Feature
       working copy: the agent works in its own clone, a separate WSL
       folder opened only with *Reopen in Container*, and the human runs
       credentialed tasks only from his own WSL clone, on merged code. Commits from the container run pre-commit through
-      container-only hooks (`core.hooksPath`). `boundary:check` proves
+      container-only hooks (`core.hooksPath`). `check:boundary` proves
       each one.
 
 ### A7. Ansible secrets: inventory-scoped SOPS (workloads)
@@ -334,7 +334,7 @@ attempting a mutating call and confirming it's refused.
       `.mcp.json`: `mcp-server-elasticsearch` (Agent Builder's MCP
       endpoint needs Enterprise), its key in `homelab-ro.yaml`, with
       `indices: [*]: [read, view_index_metadata, monitor]` (`monitor` for
-      the server's `_cat` tools); its `boundary:check` shows a write
+      the server's `_cat` tools); its `check:boundary` shows a write
       refused.
 - [ ] Only if workloads runs Kubernetes: Kubernetes MCP, a dedicated RO ServiceAccount and `ClusterRole`
       (`get`/`list`/`watch` only) with its own kubeconfig. The human's
@@ -397,19 +397,19 @@ and the agent reads the result. Apply stays human-only.
       runner group `homelab` limited to the two homelab repos (public
       allowed), all workflows (a branch-pinned workflow never matches a
       `pull_request` merge ref), label `homelab`.
-      `mise run runner:check` proves the runner's limits.
+      `mise run check:runner` proves the runner's limits.
 - [x] Core playbooks are check-mode safe: read-only `command`/`shell`/`uri`
       tasks get `check_mode: false` + `changed_when: false`, conditions on
       skipped results use `default(...)`, a pre-commit check lists every
       `check_mode: false` for review, and `site.yml` refuses a non-check
       run when `HOMELAB_DRY_RUN=1` (backstop only).
-- [x] mise tasks shared by CI and the human: `tofu:plan-ci` (`-refresh=false`, never writes
-      `tfplan`) and `ansible:check` (`--check --diff --limit
+- [x] mise tasks shared by CI and the human: `ci:plan` (`-refresh=false`, never writes
+      `tfplan`) and `ci:check` (`--check --diff --limit
       '!github_runner'`), both with the `ci` key; denied to the agent.
 - [x] `.github/workflows/dry-run.yml`: `pull_request` only (never
       `pull_request_target`), same-repo PRs only, `environment: dry-run`
       with the human as required reviewer and no admin bypass (the actual
-      boundary, guarded by `runner:check`), `permissions: {}` with
+      boundary, guarded by `check:runner`), `permissions: {}` with
       per-job grants, one concurrency group per pull request (a new
       push cancels the previous run), `plan`, `check` and a `report` job
       that comments the summary on the pull request, chosen from the PR's
@@ -427,7 +427,7 @@ and the agent reads the result. Apply stays human-only.
       (`/opt/actions-runner/_diag/`) are the ones to ship then.
 - [ ] Done when: a PR touching `terraform/` and `ansible/` gets a plan and
       a check recap after the human approves, a fork PR never reaches the
-      runner, and `boundary:check` / `runner:check` pass. All but the fork
+      runner, and `check:boundary` / `check:runner` pass. All but the fork
       test: open a pull request from a fork and confirm *What changed* is
       skipped.
 - [ ] The red button drill ([`SETUP.md`](SETUP.md#drill)): once, then every

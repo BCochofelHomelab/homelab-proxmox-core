@@ -25,7 +25,7 @@
   become: true
 
 # Stopping docker.socket leaves its file behind (systemd removes it only
-# with RemoveOnStop=): nothing listens on it, but runner:check expects none.
+# with RemoveOnStop=): nothing listens on it, but check:runner expects none.
 - name: Remove Docker's leftover socket file
   ansible.builtin.file:
     path: /var/run/docker.sock

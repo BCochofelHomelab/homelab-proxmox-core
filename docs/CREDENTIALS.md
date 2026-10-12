@@ -39,7 +39,7 @@ What each command runs as:
 | Proxmox / GitHub MCP servers | `ai-agent` | `ai-agent@pve!ai-agent` (Proxmox) | `AiAgentRO`: read only | — | `~/.secrets/homelab-ro.yaml` |
 | Terraform MCP server | — | — | — | — | none needed |
 | `git push`, `gh` in the devcontainer | `ai-agent` on GitHub: machine user `bcochofel-ai-agent` | — | — | — | `~/.secrets/ai-agent-git.yaml` |
-| `tofu:plan-ci`, `ansible:check` on the dry-run runner (step 11) | `ci` | `ci@pve!plan` | `AiAgentRO`: read only | a token that can write state (accepted risk) | `ci/dry-run.sops.yaml`, the `ci` key |
+| `ci:plan`, `ci:check` on the dry-run runner (step 11) | `ci` | `ci@pve!plan` | `AiAgentRO`: read only | a token that can write state (accepted risk) | `ci/dry-run.sops.yaml`, the `ci` key |
 
 - **Proxmox API token:** the credential the tool presents to the Proxmox
   API, in the form `user@realm!token-name`.
@@ -513,7 +513,7 @@ Commands that don't decrypt still work with plain `sops`: creating a new
 file, `sops filestatus` and `sops encrypt`. Opening a `*.sops.yaml` file
 in your editor directly shows the ciphertext; edit through `sops` so it's
 decrypted into the editor and re-encrypted on save. After changing a
-file, run `mise run secrets:check` (and `creds:check` if you changed a
+file, run `mise run secrets:check` (and `check:creds` if you changed a
 token; step 7).
 
 ## 6. The AI agent uses only the `ai-agent` key
@@ -556,15 +556,15 @@ never a secret value. Run them from the repo, on WSL:
 
 ```bash
 mise run secrets:check    # each secret file opens with the right key, and only with it
-mise run creds:check      # each credential authenticates (one read-only API call each)
-mise run boundary:check   # the AI agent's boundary holds (checks 7.1-7.5)
+mise run check:creds      # each credential authenticates (one read-only API call each)
+mise run check:boundary   # the AI agent's boundary holds (checks 7.1-7.5)
 ```
 
 Run them again whenever you change a role, a token, a secret file or a
-`.sops.yaml` rule. `boundary:check` also runs in the devcontainer, where it
+`.sops.yaml` rule. `check:boundary` also runs in the devcontainer, where it
 adds container-only checks (step 10).
-`secrets:check` and `creds:check` use your key, so they're yours only;
-`boundary:check` uses only the `ai-agent` key, so the AI agent may run it
+`secrets:check` and `check:creds` use your key, so they're yours only;
+`check:boundary` uses only the `ai-agent` key, so the AI agent may run it
 too.
 
 The sections below explain what each check proves, how to run it by hand,
@@ -672,7 +672,7 @@ shell. `curl` prints only the HTTP status.
 
 ### 7.6. Every credential authenticates
 
-`mise run creds:check` makes one read-only API call with each credential,
+`mise run check:creds` makes one read-only API call with each credential,
 and checks that the values with no API to call are set:
 
 | Credential | File | Call | Expect |
@@ -729,7 +729,7 @@ so the same configuration works on WSL and in the devcontainer
 - The Terraform server needs no credential.
 - Every binary is pinned: the GitHub and Terraform servers in `mise.toml`
   (installed by `mise install`, checksums in `mise.lock`), the Proxmox
-  server by `mise run mcp:install` (a reviewed commit).
+  server by `mise run setup:mcp` (a reviewed commit).
 
 Never add a token to `.mcp.json` or to `claude mcp add -e TOKEN=...`:
 both store it in plain text.
@@ -744,7 +744,7 @@ model doesn't allow. They keep working in your other projects.
 The devcontainer does all of this itself when it's created. On WSL:
 
 1. Create the GitHub token below and add it to `homelab-ro.yaml`.
-2. Install the Proxmox server: `mise run mcp:install`.
+2. Install the Proxmox server: `mise run setup:mcp`.
 3. Start Claude Code in the repo and approve the three project MCP servers
    when it asks (or later with `/mcp`).
 
@@ -755,7 +755,7 @@ project's `.mcp.json` defines them.
 ### Proxmox
 
 `gilby125/mcp-proxmox` (Node.js) isn't published as a package, so
-`mise run mcp:install` clones it into `~/.local/share/mcp-proxmox` at the
+`mise run setup:mcp` clones it into `~/.local/share/mcp-proxmox` at the
 commit pinned in `mise.toml`. Review the upstream diff before bumping that
 commit.
 
@@ -787,7 +787,7 @@ would enable every toolset, including the HCP Terraform ones. Don't give
 it `TFE_TOKEN`, which would open HCP Terraform workspaces and state.
 
 It logs to `~/.local/state/mcp/terraform-mcp-server.log` (JSON lines; the
-directory is created by `mise run mcp:install`), the start of the audit
+directory is created by `mise run setup:mcp`), the start of the audit
 trail of the agent's tool calls.
 
 ### Check them
@@ -802,7 +802,7 @@ do something it must not be able to do. Each request must fail:
 - Proxmox: snapshot a VM. The server refuses it itself (*Snapshot
   Creation Requires Elevated Permissions*), because it runs with
   `PROXMOX_ALLOW_ELEVATED=false`; the request never reaches Proxmox. The
-  token's own limit is checked separately: `mise run boundary:check`
+  token's own limit is checked separately: `mise run check:boundary`
   asks Proxmox for a write as `ai-agent` and expects 403 (check 7.5).
 - GitHub: comment on an issue (no write tools exist).
 - Terraform: list HCP Terraform workspaces (no tools for that).
@@ -864,7 +864,7 @@ mise run secrets:edit -- ai-agent-git.yaml
 ```
 
 When it expires, generate a new one the same way, replace the value and
-run `mise run creds:check`.
+run `mise run check:creds`.
 
 ### The organization
 
@@ -878,10 +878,10 @@ Write can merge its own pull requests.
 
 ```bash
 mise run secrets:check   # ai-agent-git.yaml opens with your key and the ai-agent key
-mise run creds:check     # the token is bcochofel-ai-agent's: push but not admin on both repos
+mise run check:creds     # the token is bcochofel-ai-agent's: push but not admin on both repos
 ```
 
-Then, in the devcontainer, `mise run boundary:check` proves git and `gh`
+Then, in the devcontainer, `mise run check:boundary` proves git and `gh`
 act as `bcochofel-ai-agent` and nothing of yours is reachable (step 10).
 
 ## 10. The devcontainer
@@ -905,7 +905,7 @@ shows *Dev Container: homelab-proxmox-core (ai-agent)* when you're in.
 Then, in a terminal inside it (*Terminal → New Terminal*):
 
 ```bash
-mise run boundary:check
+mise run check:boundary
 cd terraform && tofu init -backend=false && tofu validate && cd ..
 cd ansible && ansible-lint && ansible-playbook playbooks/site.yml --syntax-check && cd ..
 claude mcp list
@@ -914,7 +914,7 @@ mise run tofu:plan
 
 **Expect:**
 
-- `boundary:check`: every line `ok`, including its `== devcontainer`
+- `check:boundary`: every line `ok`, including its `== devcontainer`
   section (your key, `homelab.yaml` and the Docker socket aren't there;
   `SOPS_AGE_KEY_FILE` is the `ai-agent` key) and its git section (no
   ssh-agent, no git credential helper but the agent's, commits authored
@@ -930,7 +930,7 @@ mise run tofu:plan
 - `mise run tofu:plan`: **fails**, because neither your key nor
   `homelab.yaml` exists in the container. That failure is the point.
 
-`secrets:check` and `creds:check` don't belong here: they need your key,
+`secrets:check` and `check:creds` don't belong here: they need your key,
 which the container must never have.
 
 ## 11. The CI dry-run identity (`ci`)
@@ -963,7 +963,7 @@ these files.
 
 A third key, under its own name like the other two (never SOPS's default
 path) and never in the devcontainer. With it on WSL you can repeat a
-dry-run yourself (`mise run tofu:plan-ci`, `ansible:check`):
+dry-run yourself (`mise run ci:plan`, `ci:check`):
 
 ```bash
 age-keygen -o ~/.config/sops/age/ci.txt && chmod 600 ~/.config/sops/age/ci.txt
@@ -986,7 +986,7 @@ which no branch rule matches). And under *Settings → Actions → General*:
 
 ### 11.2. The automation SSH key
 
-What `ansible:check` connects with, next to your own key: in the Packer
+What `ci:check` connects with, next to your own key: in the Packer
 template (`ssh_authorized_keys`, for VMs built from now on) and in the
 `ci_ssh_key` role (`ci_ssh_public_key`, for the running VMs). Not in OpenTofu's `sshkeys`: cloud-init
 only applies keys at a VM's first boot.
@@ -1013,7 +1013,7 @@ The line it prints (`ssh-ed25519 AAAA... ci@homelab (dry-run runner)`) is
 the public half. If it isn't already the one in both
 `ansible/roles/ci_ssh_key/defaults/main.yml` (`ci_ssh_public_key`) and
 `packer/ubuntu-26.04/variables.pkr.hcl` (`ssh_authorized_keys`), put it
-in both, in the same pull request as `ci/` (11.5). `mise run creds:check`
+in both, in the same pull request as `ci/` (11.5). `mise run check:creds`
 fails until they match. Once merged, `mise run ansible:site` authorizes
 it on every host.
 
@@ -1088,10 +1088,10 @@ yourself: only you can make them.
 
 ### 11.6. Check it
 
-- `mise run creds:check`: the `ci/` section shows `ci@pve!plan` and the
+- `mise run check:creds`: the `ci/` section shows `ci@pve!plan` and the
   team token authenticate, the SSH key opens with the `ci` key and matches
   `ci_ssh_public_key`, and every inventory file opens with the `ci` key.
-- `mise run boundary:check` (WSL and devcontainer): the `ai-agent` key is
+- `mise run check:boundary` (WSL and devcontainer): the `ai-agent` key is
   refused by both `ci/` files; in the devcontainer, no `ci` key.
-- `mise run runner:check`: `ci@pve!plan` is refused a write (HTTP 403).
-- `mise run tofu:plan-ci`: *No changes*, as yours.
+- `mise run check:runner`: `ci@pve!plan` is refused a write (HTTP 403).
+- `mise run ci:plan`: *No changes*, as yours.

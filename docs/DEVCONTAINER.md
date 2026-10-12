@@ -211,7 +211,7 @@ every rebuild. Anything other than the expected result means a credential
 is wider than intended, or the agent's tooling is broken.
 
 ```bash
-mise run boundary:check
+mise run check:boundary
 ```
 
 **Expect:** every line `ok`. It runs the same checks as on WSL

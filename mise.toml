@@ -51,7 +51,7 @@ python = "3.14.8"
 uv     = "0.12.22"
 node   = "24.21.0"
 # MCP servers for the AI agent (.mcp.json, docs/CREDENTIALS.md step 8).
-# The Proxmox one isn't packaged: `mise run mcp:install` pins it instead.
+# The Proxmox one isn't packaged: `mise run setup:mcp` pins it instead.
 "aqua:github/github-mcp-server"       = "1.14.0"
 # HashiCorp ships this one on releases.hashicorp.com, not as GitHub release
 # assets, so aqua can't resolve it: plain download, checksum from its
@@ -107,13 +107,13 @@ run = [
 description = "Run every pre-commit hook on all files"
 run = "pre-commit run --all-files"
 
-[tasks.secrets]
+[tasks."lint:secrets"]
 description = "Scan the full git history for leaked secrets (gitleaks)"
 run = "gitleaks git --redact --no-banner ."
 
 [tasks.check]
 description = "Everything CI runs on a pull request"
-depends = ["lint", "secrets"]
+depends = ["lint", "lint:secrets"]
 
 [tasks.doctor]
 description = "Diagnose the local toolchain"
@@ -183,7 +183,7 @@ env = { ANSIBLE_SOPS_AGE_KEYFILE = "{{env.HOME}}/.config/sops/age/bcochofel.txt"
 raw = true
 run = "ansible-playbook playbooks/30-github-runner.yml"
 
-[tasks."tofu:plan-ci"]
+[tasks."ci:plan"]
 description = "Plan as ci, the dry-run runner's identity (ci/dry-run.sops.yaml with the ci key), without refreshing; never saves a plan"
 dir = "{{config_root}}/terraform"
 shell = "bash -c"
@@ -197,7 +197,7 @@ run = '''
 sops exec-env ../ci/dry-run.sops.yaml 'tofu init -input=false -no-color >/dev/null && tofu plan -refresh=false -input=false -no-color -lock-timeout=5m'
 '''
 
-[tasks."ansible:check"]
+[tasks."ci:check"]
 description = "Dry-run site.yml as ci (--check --diff): the ci key, the automation SSH key and the inventory from the OpenTofu state; never on runner01. Extra args after --"
 dir = "{{config_root}}/ansible"
 shell = "bash -c"
@@ -258,7 +258,7 @@ fi
 exit $rc
 '''
 
-[tasks."creds:check"]
+[tasks."check:creds"]
 description = "Check every credential authenticates, with one read-only API call each (prints ok/FAIL and HTTP status, never a value)"
 shell = "bash -c"
 run = '''
@@ -349,7 +349,7 @@ else
   [ -n "$got" ] && [ "$got" = "$want" ] && echo "ok    ci/ssh_ed25519.key.sops opens with the ci key and matches ci_ssh_public_key" ||
     { echo "FAIL  ci/ssh_ed25519.key.sops doesn't open with the ci key, or isn't ci_ssh_public_key's pair"; rc=1; }
 fi
-# ansible:check reads the inventory secrets with the ci key.
+# ci:check reads the inventory secrets with the ci key.
 for f in "{{config_root}}"/ansible/inventory/group_vars/*.sops.yaml; do
   [ -e "$f" ] || continue
   name=${f#"{{config_root}}/"}
@@ -360,7 +360,7 @@ done
 exit $rc
 '''
 
-[tasks."boundary:check"]
+[tasks."check:boundary"]
 description = "Prove the AI agent's boundary using only the ai-agent key: WSL or devcontainer (prints ok/FAIL, never a value)"
 shell = "bash -c"
 run = '''
@@ -466,9 +466,9 @@ if [ -n "$REMOTE_CONTAINERS" ] || [ -f /.dockerenv ]; then
   # the PAT has no Workflows permission, so GitHub must refuse it.
   idx=$(mktemp)
   GIT_INDEX_FILE=$idx git read-tree HEAD
-  blob=$(echo "# boundary:check" | git hash-object -w --stdin)
+  blob=$(echo "# check:boundary" | git hash-object -w --stdin)
   GIT_INDEX_FILE=$idx git update-index --add --cacheinfo "100644,$blob,.github/workflows/boundary-check.yml"
-  commit=$(git commit-tree "$(GIT_INDEX_FILE=$idx git write-tree)" -p HEAD -m "boundary:check workflow push")
+  commit=$(git commit-tree "$(GIT_INDEX_FILE=$idx git write-tree)" -p HEAD -m "check:boundary workflow push")
   rm -f "$idx"
   if out=$(git push origin "$commit:refs/heads/boundary-check-workflows" 2>&1); then
     git push -q origin --delete boundary-check-workflows
@@ -479,7 +479,7 @@ fi
 exit $rc
 '''
 
-[tasks."runner:check"]
+[tasks."check:runner"]
 description = "Prove the GitHub Actions runner's limits on runner01, over SSH as you (prints ok/FAIL, never a value)"
 shell = "bash -c"
 run = '''
@@ -545,7 +545,7 @@ else echo "FAIL  dry-run environment: administrators can bypass it (or it couldn
 exit $rc
 '''
 
-[tasks."mcp:install"]
+[tasks."setup:mcp"]
 description = "Install the Proxmox MCP server at its pinned commit into ~/.local/share/mcp-proxmox"
 shell = "bash -c"
 run = '''
