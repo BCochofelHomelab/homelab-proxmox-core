@@ -230,8 +230,8 @@ on the node lists `TofuApply`'s privileges.
 
 ```bash
 mise run secrets:check
-mise run creds:check
-mise run boundary:check
+mise run check:creds
+mise run check:boundary
 ```
 
 ## Stage 5. Build: Packer, OpenTofu, Ansible
@@ -304,7 +304,7 @@ or changes infrastructure. Most of that is enforced by GitHub; the rest by
    Approve it in *Organization settings → Personal access tokens → Pending
    requests*, then store it as `GH_TOKEN` in `~/.secrets/ai-agent-git.yaml`
    ([`CREDENTIALS.md`](CREDENTIALS.md) step 9). When it expires, a new one
-   the same way, then `mise run creds:check`.
+   the same way, then `mise run check:creds`.
 
 ### What GitHub enforces, and what it doesn't
 
@@ -342,10 +342,10 @@ to token pushes.
    `git push` and `gh pr create` in the agent's (`post-create.sh` writes
    it), `ask` in yours ([`DEVCONTAINER.md`](DEVCONTAINER.md#pushes-and-pull-requests)).
 
-**Check**, in the container: `mise run boundary:check`, every line `ok`,
+**Check**, in the container: `mise run check:boundary`, every line `ok`,
 including its git and GitHub section (commits as `bcochofel-ai-agent`,
 `main` requires a code owner, a workflow push is refused). On WSL,
-`mise run creds:check` shows the token can push to both repositories but
+`mise run check:creds` shows the token can push to both repositories but
 not administer them.
 
 ## Stage 8. The dry-run runner (optional)
@@ -421,9 +421,9 @@ In this order:
 6. **Check:**
 
    ```bash
-   mise run runner:check   # every line ok, the last two: reviewer sre-lead, no admin bypass
-   mise run tofu:plan-ci   # No changes
-   mise run ansible:check  # failed=0; only CoreDNS's zone serial and restart change
+   mise run check:runner   # every line ok, the last two: reviewer sre-lead, no admin bypass
+   mise run ci:plan   # No changes
+   mise run ci:check  # failed=0; only CoreDNS's zone serial and restart change
    ```
 
 7. **A test pull request** touching `ansible/`: the dry-run waits for you,
@@ -446,7 +446,7 @@ ssh ubuntu@runner01.homelab.bcochofel.com \
 | --- | --- | --- |
 | Proxmox | `ci@pve!plan`, role `AiAgentRO` | Read-only: Proxmox refuses a write. |
 | HCP Terraform | an `owners` team token | Can write state (the Free plan has no read-only token): an accepted risk, limited to this organization, used only in a job you approved that only plans. |
-| SSH | the automation key, next to yours on every VM | Root-equivalent, like yours: used only by `ansible:check`, never in the devcontainer. |
+| SSH | the automation key, next to yours on every VM | Root-equivalent, like yours: used only by `ci:check`, never in the devcontainer. |
 | SOPS | the `ci` age key: `ci/`, the inventory files | Never a recipient of `~/.secrets/`. |
 | GitHub | `CI_AGE_KEY`, a `dry-run` environment secret | The only secret GitHub holds; the job hands it to SOPS as `SOPS_AGE_KEY`, never written to disk. |
 
@@ -497,7 +497,7 @@ And around them:
 - `permissions: {}` by default. One concurrency group per pull request,
   `cancel-in-progress`: a new push cancels that pull request's previous
   dry-run, even one still waiting for approval. `runner01` is a single
-  runner, so jobs never overlap anyway, and `tofu:plan-ci` waits up to
+  runner, so jobs never overlap anyway, and `ci:plan` waits up to
   five minutes for the state lock; a second runner would need a shared
   job-level group.
 - Every action, in every workflow, pinned to a commit SHA with its version
@@ -543,19 +543,19 @@ there.
 Shared by CI and you, so a dry-run can be repeated from your clone, and
 all denied to the AI agent:
 
-- **`tofu:plan-ci`:** `tofu plan -refresh=false` with `ci/dry-run.sops.yaml`;
+- **`ci:plan`:** `tofu plan -refresh=false` with `ci/dry-run.sops.yaml`;
   never writes `tfplan`. No refresh, because refreshing a VM reads its
   disks' volume info, which Proxmox allows only with `VM.Config.Disk`, a
   write privilege `ci@pve!plan` deliberately lacks
   ([bpg/terraform-provider-proxmox#3141](https://github.com/bpg/terraform-provider-proxmox/issues/3141)).
   It shows what the code changes against the state, not changes made by
   hand since the last apply; your `tofu:plan` still refreshes.
-- **`ansible:check`:** decrypts the automation key into a temporary
+- **`ci:check`:** decrypts the automation key into a temporary
   directory, writes `inventory/hosts.ini` from the state's
   `ansible_inventory` output, and runs `site.yml --check --diff --limit
   '!github_runner'`. The runner never dry-runs itself.
 - **`ansible:runner`:** `30-github-runner.yml`, with your key.
-- **`runner:check`:** over SSH as you: `gha-runner` has no sudo and no
+- **`check:runner`:** over SSH as you: `gha-runner` has no sudo and no
   Docker, no age key outside a job's temp directory, the runner is
   registered and runs as `gha-runner`, `HOMELAB_DRY_RUN=1`, the hook is
   root's. Then, from your machine: `ci@pve!plan` gets a 403 on a write, and
@@ -563,7 +563,7 @@ all denied to the AI agent:
   bypass. Without that reviewer, a pull request's code runs on `runner01`
   with the `ci` key, unapproved: the environment is the boundary.
 
-`tofu:plan-ci` and `ansible:check` take the `ci` key from `SOPS_AGE_KEY`
+`ci:plan` and `ci:check` take the `ci` key from `SOPS_AGE_KEY`
 (CI) or `~/.config/sops/age/ci.txt` (your machine).
 
 ### Check mode in the playbooks
@@ -598,8 +598,8 @@ helps.
 
 **Restore** in reverse: enable the workflow, re-register the runner
 ([Setting it up](#setting-it-up), step 3), add the machine user back to
-`sre-team`, reopen the devcontainer; then `mise run runner:check`, and
-`mise run boundary:check` in the container.
+`sre-team`, reopen the devcontainer; then `mise run check:runner`, and
+`mise run check:boundary` in the container.
 
 ### Level 2: revoke (a credential may have leaked)
 
@@ -612,8 +612,8 @@ Level 1 first, then:
 | The `ci` age key | Delete `CI_AGE_KEY`; remove the `ci` recipient from `.sops.yaml` and `updatekeys` its files | Everything it could open: the Cloudflare token, the Pi-hole password, `ci@pve!plan`, the HCP team token, `cipassword`, the automation SSH key (and its public half on every host) |
 | `runner01` | Treat it as compromised: destroy it and rebuild it from the template | The `ci` row |
 
-Afterwards: `mise run secrets:check`, `creds:check`, `boundary:check` and
-`runner:check`.
+Afterwards: `mise run secrets:check`, `check:creds`, `check:boundary` and
+`check:runner`.
 
 ### Drill
 
@@ -632,13 +632,13 @@ The same place as before, when all of these hold:
 ```bash
 mise run doctor           # no problems
 mise run secrets:check    # every line ok
-mise run creds:check      # every line ok
-mise run boundary:check   # every line ok (and in the devcontainer, stage 7)
+mise run check:creds      # every line ok
+mise run check:boundary   # every line ok (and in the devcontainer, stage 7)
 mise run tofu:plan        # No changes
 mise run ansible:site     # failed=0 everywhere; all external dependencies ready
-mise run runner:check     # every line ok (stage 8)
-mise run tofu:plan-ci     # No changes (stage 8)
-mise run ansible:check    # failed=0 (stage 8)
+mise run check:runner     # every line ok (stage 8)
+mise run ci:plan     # No changes (stage 8)
+mise run ci:check    # failed=0 (stage 8)
 ```
 
 And, on GitHub: [stage 2's checks](#check-it) match its tables, and a

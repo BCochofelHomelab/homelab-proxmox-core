@@ -21,7 +21,7 @@ permissions: {}
 # One dry-run per pull request: a new push cancels the previous one, even
 # while it waits for approval (a waiting run would otherwise hold the group
 # and queue every later push behind it). runner01 is a single runner, so
-# jobs never overlap on the hosts, and tofu:plan-ci waits for the state
+# jobs never overlap on the hosts, and ci:plan waits for the state
 # lock; a second runner would need a shared job-level group.
 concurrency:
   group: dry-run-${{ github.event.pull_request.number }}
@@ -92,7 +92,7 @@ jobs:
         run: |
           out="$RUNNER_TEMP/plan.txt"
           rc=0
-          mise run tofu:plan-ci >"$out" 2>&1 || rc=$?
+          mise run ci:plan >"$out" 2>&1 || rc=$?
           if [ "$rc" -ne 0 ]; then summary="Failed (exit $rc): see the encrypted artifact."
           else summary=$(grep -m1 -E '^(Plan:|No changes\.)' "$out" || echo "No summary line: see the encrypted artifact."); fi
           printf '## tofu plan\n%s\n' "$summary" | tee -a "$GITHUB_STEP_SUMMARY"
@@ -142,7 +142,7 @@ jobs:
         run: |
           out="$RUNNER_TEMP/check.txt"
           rc=0
-          mise run ansible:check >"$out" 2>&1 || rc=$?
+          mise run ci:check >"$out" 2>&1 || rc=$?
           # One line per host; no pipefail in run: steps, so test the result.
           recap=$(sed -n '/^PLAY RECAP/,$p' "$out" | grep -E '^[A-Za-z0-9_.-]+ +: ' | tr -s ' ')
           [ -n "$recap" ] || recap="No recap: see the encrypted artifact."

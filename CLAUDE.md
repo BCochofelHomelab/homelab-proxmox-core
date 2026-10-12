@@ -13,7 +13,7 @@ setting, record it in `SETUP.md`.
 (this repo + `homelab-proxmox-workloads`, whose copy only points here), and
 the only TODO list. Implemented items stay in it, ticked (`- [x]`), as a
 record — no dates, no incident notes; tick an item only once its checks
-(`docs/CREDENTIALS.md` step 7, `docs/DEVCONTAINER.md`, `runner:check`)
+(`docs/CREDENTIALS.md` step 7, `docs/DEVCONTAINER.md`, `check:runner`)
 have passed. Items spanning both repos are split into a core and a
 workloads line; superseded ones stay struck through with the reason.
 Ticking an item also updates its row in the doc's *Where it stands* table. In those human-facing docs,
@@ -240,9 +240,13 @@ toolchain, Docker Compose service style.
   numbers (they'd go stale): update it only when a tool is added or
   removed. mise's own version is `MISE_VERSION` in
   `.devcontainer/post-create.sh`, which `docs/SETUP.md`'s install command
-  reads. **mise tasks:**
-  setup and checks (`setup:*`, `lint`, `secrets`, `check`, `doctor`,
-  `outdated`), plus the credentialed commands at the bottom of
+  reads. **mise tasks** are named `<namespace>:<action>`: `setup:*`
+  (install), `lint` and `lint:secrets` (gitleaks on the history), `check`
+  (both, what CI runs), `check:*` (verify the credentials, the boundary,
+  the runner), `ci:*` (as the `ci` identity), and one namespace per tool
+  for its credentialed command (`packer:`, `tofu:`, `ansible:`,
+  `secrets:`). Setup and checks (`setup:*`, `lint`, `lint:secrets`,
+  `check`, `doctor`, `outdated`), plus the credentialed commands at the bottom of
   `mise.toml`: `packer:build`, `tofu:init`, `tofu:plan`, `tofu:apply`.
   Each wraps one command in `sops exec-env ~/.secrets/homelab.yaml` and is
   the human's: the agent's key can't decrypt that file, and the ones that
@@ -251,8 +255,8 @@ toolchain, Docker Compose service style.
   (`docs/SRE-AI.md` A1 tracks adding one). The agent's OpenTofu checks are
   `tofu init -backend=false` + `tofu validate` (+ `mise run lint`).
   `ansible:site` (the playbook, with the human key as
-  `ANSIBLE_SOPS_AGE_KEYFILE`), `sops`, `secrets:check` and `creds:check`
-  are human tasks too, all denied to the agent. `boundary:check` uses only
+  `ANSIBLE_SOPS_AGE_KEYFILE`), `sops`, `secrets:check` and `check:creds`
+  are human tasks too, all denied to the agent. `check:boundary` uses only
   the `ai-agent` key and prints no values; the agent may run it (WSL or
   devcontainer).
 - **IaC engine is OpenTofu (`tofu`), state in HCP Terraform.** The
@@ -304,15 +308,15 @@ toolchain, Docker Compose service style.
   workflows* on purpose: a branch-pinned workflow never matches a
   `pull_request` job's merge ref, so don't "tighten" it to
   `dry-run.yml@refs/heads/main`. The HCP token is an `owners` team token
-  (org-scoped). `ansible:check` writes `hosts.ini` from the `ansible_inventory`
+  (org-scoped). `ci:check` writes `hosts.ini` from the `ansible_inventory`
   output (sensitive) in the state. The automation key is not in OpenTofu's
   `sshkeys` on purpose (cloud-init applies keys only at first boot, and a
   change would show on every VM): the Packer template has it for new VMs,
   the `ci_ssh_key` role (`01-ci-ssh-key.yml`) for the rest. `.sops.yaml`
   is first-match: the `ci/` and inventory rules (human + `ci`) come
-  before the catch-all (human only). `tofu:plan-ci` and `ansible:check`
+  before the catch-all (human only). `ci:plan` and `ci:check`
   take the `ci` key from `SOPS_AGE_KEY` (CI) or `~/.config/sops/age/ci.txt`.
-  `tofu:plan-ci` runs with `-refresh=false` on purpose: refreshing reads
+  `ci:plan` runs with `-refresh=false` on purpose: refreshing reads
   each VM disk's volume info, which needs `VM.Config.Disk` (a write
   privilege) — never grant it to `ci`/`AiAgentRO` to "fix" the plan.
   Every `check_mode: false` needs `# read-only: <why>` on the same line
@@ -369,10 +373,10 @@ summary.
   runs inside WSL here); the human never runs anything from it and runs
   every credentialed task only from his own WSL clone,
   `~/Projects/GitHub/BCochofelHomelab/homelab-proxmox-core`, on merged
-  code. `boundary:check` fails if the container's workspace is mounted
+  code. `check:boundary` fails if the container's workspace is mounted
   from the human's clone. Bootstrap stays skipped in the container
   (pre-commit refuses `install` with `core.hooksPath` set).
-  `boundary:check` on WSL flags `.git/config` keys that run code, since
+  `check:boundary` on WSL flags `.git/config` keys that run code, since
   the agent's WSL sessions can write that file.
 - **The agent's GitHub identity is the machine user `bcochofel-ai-agent`,
   in the devcontainer only** (`docs/SETUP.md` stages 2 and 7, `docs/CREDENTIALS.md`
@@ -466,7 +470,7 @@ summary.
 - **MCP servers: read-only, project scope (`.mcp.json`), `docs/CREDENTIALS.md`
   step 8.** One committed `.mcp.json` serves WSL and the devcontainer:
   Proxmox (`ai-agent@pve!ai-agent`, `PROXMOX_ALLOW_ELEVATED=false`;
-  `gilby125/mcp-proxmox` at a commit pinned in the `mcp:install` task),
+  `gilby125/mcp-proxmox` at a commit pinned in the `setup:mcp` task),
   GitHub (`github-mcp-server --read-only`, read-only fine-grained PAT) and
   Terraform (`terraform-mcp-server --toolsets=registry`, no `TFE_TOKEN`);
   the two binaries are pinned in `mise.toml` (terraform-mcp-server via the
@@ -509,9 +513,9 @@ infrastructure or touches the human's key needs a human. The committed
   decrypting/editing `sops` subcommand (`-d`, `--decrypt`, `decrypt`,
   `edit`, `exec-env`, `exec-file`, `set`, `unset`, `rotate`); every mise
   task that uses the human or `ci` key (`packer:build`, `tofu:init|plan|apply`,
-  `tofu:plan-ci`, `ansible:check`,
-  `ansible:site`, `ansible:runner`, `runner:check`, `sops`, `secrets:edit`,
-  `secrets:check`, `creds:check`);
+  `ci:plan`, `ci:check`,
+  `ansible:site`, `ansible:runner`, `check:runner`, `sops`, `secrets:edit`,
+  `secrets:check`, `check:creds`);
   `terraform`/`tofu destroy`; running the credential helper or `git
   credential`; force/deleting pushes; `gh auth`, `gh pr merge`, `gh pr
   review`, `gh release`, `gh repo delete`, `gh secret`, `gh variable`,
@@ -550,7 +554,8 @@ mise trust && mise install   # pinned tools, .venv + Ansible collections,
 
 Individual pieces, if you need to re-run just one — see `mise tasks` for
 the full list (`bootstrap`, `setup:hooks`, `setup:tflint`,
-`setup:ansible`, `lint`, `secrets`, `check`, `doctor`, `outdated`).
+`setup:ansible`, `setup:mcp`, `lint`, `lint:secrets`, `check`, `doctor`,
+`outdated`).
 
 Credentialed commands (human only):
 
@@ -561,14 +566,14 @@ mise run tofu:plan      # as terraform — the one to review; saves terraform/tf
 mise run tofu:apply     # applies terraform/tfplan (no prompt)
 mise run ansible:site   # ansible-playbook playbooks/site.yml with the human key
 mise run ansible:runner # playbooks/30-github-runner.yml (not in site.yml); asks for a registration token
-mise run runner:check   # runner01's limits, over SSH as the human
-mise run tofu:plan-ci   # plan as ci (the dry-run runner's identity), never saves a plan
-mise run ansible:check  # site.yml --check --diff as ci, inventory from the state
+mise run check:runner   # runner01's limits, over SSH as the human
+mise run ci:plan       # plan as ci (the dry-run runner's identity), never saves a plan
+mise run ci:check      # site.yml --check --diff as ci, inventory from the state
 mise run sops -- <args> # sops with the human key (edit, updatekeys)
 mise run secrets:edit -- homelab-ro.yaml  # sops on a ~/.secrets file, from ~/.secrets
 mise run secrets:check  # every ~/.secrets file opens with the right key only
-mise run creds:check    # every credential authenticates (read-only API calls)
-mise run boundary:check # the agent's boundary holds (agent may run this one)
+mise run check:creds    # every credential authenticates (read-only API calls)
+mise run check:boundary # the agent's boundary holds (agent may run this one)
 ```
 
 ## Before first run

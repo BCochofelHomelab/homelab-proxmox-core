@@ -71,7 +71,7 @@ repos:
         types: [shell]
 
       # Staged changes only, so it's fast on every commit. The full-history
-      # scan is `mise run secrets` (also run by CI). Binary pinned in
+      # scan is `mise run lint:secrets` (also run by CI). Binary pinned in
       # mise.toml; config and allowlist in .gitleaks.toml.
       - id: gitleaks
         name: gitleaks (staged changes)

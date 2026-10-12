@@ -1,5 +1,5 @@
 ---
-# The CI dry-run runner's automation key (docs/SETUP.md) on every VM, so `mise run ansible:check` can reach them.
+# The CI dry-run runner's automation key (docs/SETUP.md) on every VM, so `mise run ci:check` can reach them.
 - name: CI dry-run runner's SSH key
   hosts: all
   gather_facts: false

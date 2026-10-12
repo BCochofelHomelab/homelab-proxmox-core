@@ -49,4 +49,4 @@ pre-commit install-hooks
 mise run setup:ansible
 # The Proxmox MCP server (.mcp.json); the GitHub/Terraform ones came with
 # `mise install` above.
-mise run mcp:install
+mise run setup:mcp
