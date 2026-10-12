@@ -93,9 +93,15 @@ git push -u origin main --tags
 
 *Settings → General*, in both:
 
-- **Pull requests:** merge commits, squash and rebase merging allowed
-  (`protected-default` requires linear history, so a merge commit is
-  refused anyway); **Automatically delete head branches** on.
+- **Pull requests:** squash and rebase merging only, merge commits off
+  (`protected-default` requires linear history anyway); **Automatically
+  delete head branches** on.
+
+*Settings → Advanced Security*, in both: **Secret scanning** and **Push
+protection** on, so a pushed secret is blocked before it reaches GitHub
+(gitleaks only runs locally and in CI). Non-provider patterns, validity
+checks and Dependabot security updates stay off (no Dependabot, see
+[`CONTRIBUTING.md`](../CONTRIBUTING.md#toolchain)).
 
 ### Teams
 
@@ -182,7 +188,7 @@ for t in sre-lead sre-team; do
 done
 for r in homelab-proxmox-core homelab-proxmox-platform; do
   echo "== $r"
-  gh api repos/$o/$r --jq '{visibility, delete_branch_on_merge}'
+  gh api repos/$o/$r --jq '{visibility, allow_merge_commit, allow_squash_merge, allow_rebase_merge, delete_branch_on_merge, secret_scanning: .security_and_analysis.secret_scanning.status, push_protection: .security_and_analysis.secret_scanning_push_protection.status}'
   gh api repos/$o/$r/collaborators --jq '.[] | "  \(.login): \(.role_name)"'
   for id in $(gh api repos/$o/$r/rulesets --jq '.[].id'); do
     gh api repos/$o/$r/rulesets/$id | jq -c '{name, enforcement, bypass_actors, rules: [.rules[] | {type, parameters}]}'
@@ -192,8 +198,10 @@ for r in homelab-proxmox-core homelab-proxmox-platform; do
 done
 ```
 
-**Expect:** the values in the tables above, `[]` for CODEOWNERS errors,
-and `read` for the workflow permissions.
+**Expect:** the values in the tables above; for each repository
+`allow_merge_commit` false, squash and rebase true, `delete_branch_on_merge`
+true, secret scanning and push protection `enabled`; `[]` for CODEOWNERS
+errors; and `read` for the workflow permissions.
 
 ## Stage 3. External accounts and the Proxmox node
 
