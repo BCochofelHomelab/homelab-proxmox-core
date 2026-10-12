@@ -3,7 +3,7 @@
 
 - name: Debug OS
   ansible.builtin.debug:
-    msg: "{{ ansible_facts['os_family'] }} > {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
+    msg: "{{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }} ({{ ansible_facts['os_family'] }} family)"
 
 - name: Check distribution compatibility
   ansible.builtin.fail:
@@ -13,7 +13,7 @@
 - name: Fail if not a supported release of Ubuntu
   ansible.builtin.fail:
     msg: "{{ ansible_facts['distribution_version'] }} is not a supported version for this role"
-  when: ansible_facts['distribution_version'] is version_compare(22.04, '<')
+  when: ansible_facts['distribution_version'] is version('22.04', '<')
 
 - name: Verify Docker is installed (baked by Packer template)
   ansible.builtin.command: docker --version
