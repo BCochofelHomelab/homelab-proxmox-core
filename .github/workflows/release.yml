@@ -48,6 +48,7 @@ jobs:
         # TFLint...), which would otherwise pull in every other tool.
         uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
         with:
+          version: "2026.10.9" # mise itself: the same as .devcontainer/post-create.sh
           install_args: node
         env:
           MISE_LOCKED: "1"

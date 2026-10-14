@@ -42,6 +42,8 @@ jobs:
         # the postinstall hook runs `mise run bootstrap` (Ansible + Galaxy
         # collections, TFLint plugins, git hooks) — same setup as a laptop.
         uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+        with:
+          version: "2026.10.9" # mise itself: the same as .devcontainer/post-create.sh
         env:
           GITHUB_TOKEN: ${{ github.token }} # tflint plugin downloads
 

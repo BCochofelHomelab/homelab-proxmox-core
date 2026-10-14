@@ -83,6 +83,7 @@ jobs:
       - name: Install OpenTofu, SOPS and age (mise)
         uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
         with:
+          version: "2026.10.9" # mise itself: the same as .devcontainer/post-create.sh
           install_args: opentofu sops age
 
       - name: Plan as ci
@@ -130,6 +131,7 @@ jobs:
       - name: Install OpenTofu, SOPS, age, Python and uv (mise)
         uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
         with:
+          version: "2026.10.9" # mise itself: the same as .devcontainer/post-create.sh
           install_args: opentofu sops age python uv
 
       - name: Install Ansible and its collections (.venv)
