@@ -455,7 +455,7 @@ local registration first, then repeat step 3:
 
 ```bash
 ssh ubuntu@runner01.homelab.bcochofel.com \
-  'sudo rm -f /opt/actions-runner/.runner /opt/actions-runner/.credentials /opt/actions-runner/.credentials_rsaparams'
+  'd=/opt/actions-runner; sudo rm -f $d/.runner $d/.runner_migrated $d/.credentials $d/.credentials_migrated $d/.credentials_rsaparams'
 ```
 
 **A dry-run job waits for a runner** while `runner01` shows *Online* and
@@ -617,9 +617,11 @@ helps.
    with a valid token.
 2. **The agent's session:** close the devcontainer window, or `docker stop
    <container>` from WSL.
-3. **The runner:** *Organization settings → Actions → Runners* →
-   `runner01` → *Remove*, and `sudo systemctl stop 'actions.runner.*'` on
-   the VM.
+3. **The runner**, both halves: in GitHub, *Organization settings →
+   Actions → Runners* → `runner01` → *Remove* (until then it's only
+   *Offline*, and comes back with its service); and on the VM, `sudo
+   systemctl stop 'actions.runner.*'`. *Check:* `runner01` is gone from
+   *Runner groups → homelab*.
 4. **The workflow:** *Actions → Dry-run → ⋯ → Disable workflow*, in both
    repositories.
 
@@ -650,7 +652,7 @@ pull request's dry-run never starts, and `gh pr checks` still works
 
 | Date | Result |
 | --- | --- |
-| — | Not run yet |
+| 2026-10-14 | Level 1: push refused (403) on both repositories, `gh pr checks` still worked; runner stopped and removed (the GitHub-side removal was missed at first and redone); a pull request opened with the workflow disabled got no dry-run. Restored: `check:runner` and `check:boundary` ok, a dry-run ran and commented again. Found: re-registration also has to delete `.runner_migrated` (the runner's newer broker files), fixed in the role, `check:runner` and the command above. |
 
 ## Final verification
 

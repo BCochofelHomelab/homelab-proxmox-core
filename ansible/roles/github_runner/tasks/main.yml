@@ -126,14 +126,19 @@
   become: true
   notify: Restart the runner
 
+# Registered means .runner, or .runner_migrated: once the runner moves its
+# registration to GitHub's newer job broker (on its own, some time after
+# registering), it replaces .runner with .runner_migrated, and config.sh
+# refuses to register again while either exists.
 - name: Check whether the runner is registered
   ansible.builtin.stat:
-    path: "{{ github_runner_dir }}/.runner"
+    path: "{{ github_runner_dir }}/{{ item }}"
+  loop: [.runner, .runner_migrated]
   become: true
-  register: _runner_registered
+  register: _runner_registration
 
 - name: Register the runner, once
-  when: not _runner_registered.stat.exists
+  when: _runner_registration.results | selectattr('stat.exists') | list | length == 0
   block:
     - name: Check the registration token was given
       ansible.builtin.assert:
