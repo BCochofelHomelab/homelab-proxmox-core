@@ -89,6 +89,17 @@ repos:
         entry: python scripts/check_secret_variables.py
         files: \.(tf|pkr\.hcl)$
 
+      # mise itself: every workflow's jdx/mise-action step pins the same
+      # version as .devcontainer/post-create.sh's MISE_VERSION, so your
+      # workstation, the devcontainer and CI run one mise
+      # (CONTRIBUTING.md, Toolchain). Standard library only.
+      - id: mise_version
+        name: mise is pinned to one version everywhere
+        language: python
+        entry: python scripts/check_mise_version.py
+        files: ^(\.devcontainer/post-create\.sh|\.github/workflows/.*\.ya?ml|scripts/check_mise_version\.py)$
+        pass_filenames: false
+
       # Every SOPS file must be committed encrypted. `sops filestatus` reads
       # only the file's metadata: no key and no network, so it gives the
       # same answer on WSL, in the devcontainer, in CI and for the AI agent.

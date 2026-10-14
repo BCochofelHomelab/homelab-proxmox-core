@@ -223,5 +223,12 @@ Renovate.
 
 mise itself is pinned as `MISE_VERSION` in `.devcontainer/post-create.sh`,
 which [`docs/SETUP.md`](docs/SETUP.md#stage-1-workstation)'s install
-command reads. `terraform-mcp-server`'s entry spells out its URL and
+command reads, and as `version:` in every workflow's `jdx/mise-action`
+step, so CI runs the same mise. A pre-commit check
+([`scripts/check_mise_version.py`](scripts/check_mise_version.py)) fails
+when they differ. To bump it, change both: `post-create.sh` in your pull
+request, the workflows as a commit of yours (the AI agent can't push
+workflows). Read the release notes, and check that a locked install still
+works and `mise lock` leaves `mise.lock` unchanged, before you merge.
+`terraform-mcp-server`'s entry spells out its URL and
 checksum, so its bump updates all three.
