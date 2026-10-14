@@ -49,7 +49,7 @@ Update this table whenever an item is ticked.
 | A7. Ansible secrets (platform) | 1 | 1 | Platform open, if it uses Ansible. |
 | A8. Investigation MCPs | 1 | 4 | Core's three done; GitHub Issues write waits for Phase C; three only if platform runs Kubernetes. |
 | A9. Telemetry coverage | 0 | 6 | Core's Elastic Agent removed until platform's design (superseded); the rest open. |
-| A10. Dry-run executor | 7 | 6 | Working and proven: runner, `ci` identity, workflow, PR comments, a fork's pull request never reaching the runner. Open: the drill, and the five "later" items. The runner's telemetry superseded. |
+| A10. Dry-run executor | 8 | 5 | Working and proven: runner, `ci` identity, workflow, PR comments, a fork's pull request never reaching the runner, the red button drill. Open: the five "later" items. The runner's telemetry superseded. |
 | Phase B. Detection | 0 | 5 | Not started. |
 | Phase C. Assisted investigation | 0 | 6 | Not started. |
 | Phase D. Evaluation data | 0 | 4 | Not started. |
@@ -420,8 +420,9 @@ and the agent reads the result. Apply stays human-only.
       pull request from an account outside the organization waited for
       approval, then skipped all four *Dry-run* jobs, with no deployment
       and no runner.
-- [ ] The red button drill ([`SETUP.md`](SETUP.md#drill)): once, then every
-      quarter.
+- [x] The red button drill ([`SETUP.md`](SETUP.md#drill)): once, then every
+      quarter. Run once, Level 1, recorded in `SETUP.md`'s *Drill* table;
+      next due a quarter later.
 
 Later, each only after the dry-run path has a track record:
 
