@@ -240,7 +240,10 @@ toolchain, Docker Compose service style.
   numbers (they'd go stale): update it only when a tool is added or
   removed. mise's own version is `MISE_VERSION` in
   `.devcontainer/post-create.sh`, which `docs/SETUP.md`'s install command
-  reads. **mise tasks** are named `<namespace>:<action>`: `setup:*`
+  reads, and `version:` in every workflow's `jdx/mise-action` step;
+  pre-commit `mise_version` (`scripts/check_mise_version.py`) fails when
+  they differ. A bump changes both (the workflow lines go in the PR
+  description, for the human to commit). **mise tasks** are named `<namespace>:<action>`: `setup:*`
   (install), `lint` and `lint:secrets` (gitleaks on the history), `check`
   (both, what CI runs), `check:*` (verify the credentials, the boundary,
   the runner), `ci:*` (as the `ci` identity), and one namespace per tool
