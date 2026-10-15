@@ -299,7 +299,7 @@ echo "== ~/.secrets/homelab-ro.yaml (ai-agent key only)"
 HOME=$(mktemp -d) SOPS_AGE_KEY_FILE=$agent sops exec-env "$HOME/.secrets/homelab-ro.yaml" "bash -c '$lib"'
 check "Proxmox token ai-agent@pve!ai-agent" "https://$PROXMOX_HOST:$PROXMOX_PORT/api2/json/version" < <(printf "Authorization: PVEAPIToken=%s!%s=%s\n" "$PROXMOX_USER" "$PROXMOX_TOKEN_NAME" "$PROXMOX_TOKEN_VALUE")
 present GITHUB_PERSONAL_ACCESS_TOKEN "$GITHUB_PERSONAL_ACCESS_TOKEN"
-for repo in homelab-proxmox-core homelab-proxmox-platform; do
+for repo in homelab-proxmox-core homelab-proxmox-platform terraform-elasticstack-workspace; do
   check "GitHub PAT, repo BCochofelHomelab/$repo" "https://api.github.com/repos/BCochofelHomelab/$repo" < <(printf "Authorization: Bearer %s\n" "$GITHUB_PERSONAL_ACCESS_TOKEN")
 done
 exit $rc'"'" || rc=1
@@ -312,7 +312,7 @@ field() { grep -o "\"$1\": *[^,}]*" | head -1 | sed "s/^[^:]*: *//; s/\"//g"; }
 login=$(auth | curl -s -H @- https://api.github.com/user | field login)
 if [ "$login" = bcochofel-ai-agent ]; then echo "ok    GitHub PAT is bcochofel-ai-agent"
 else echo "FAIL  GitHub PAT is ${login:-not valid}, expected bcochofel-ai-agent"; rc=1; fi
-for repo in homelab-proxmox-core homelab-proxmox-platform; do
+for repo in homelab-proxmox-core homelab-proxmox-platform terraform-elasticstack-workspace; do
   perms=$(auth | curl -s -H @- "https://api.github.com/repos/BCochofelHomelab/$repo")
   push=$(field push <<<"$perms") admin=$(field admin <<<"$perms")
   if [ "$push" = true ] && [ "$admin" = false ]; then echo "ok    bcochofel-ai-agent can push to $repo, not administer it"

@@ -163,7 +163,7 @@ can read state without being able to write it.
 - [x] Self-hosted GitHub Actions runner holding the `ci` principal (A10).
       Dry-run only; a CI apply path comes later, separately.
 - [x] The agent's own GitHub identity: a machine user in the
-      `BCochofelHomelab` org, Write on the two homelab repos through the
+      `BCochofelHomelab` org, Write on the homelab repos through the
       `sre-team` team, with a 90-day fine-grained PAT (Contents and Pull
       requests read/write; Actions, Metadata and Issues read; **no**
       Workflows, Administration, Secrets or Environments) in

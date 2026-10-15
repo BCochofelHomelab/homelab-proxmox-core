@@ -681,8 +681,8 @@ and checks that the values with no API to call are set:
 | `terraform@pve!terraform` | `homelab.yaml` | Proxmox `GET /version` | `200` |
 | HCP token | `homelab.yaml` | read workspace `homelab-bcochofel-com/core-caddy` | `200` |
 | `ai-agent@pve!ai-agent` | `homelab-ro.yaml` (`ai-agent` key only) | Proxmox `GET /version` | `200` |
-| GitHub PAT | `homelab-ro.yaml` (`ai-agent` key only) | read both homelab repos | `200` |
-| `bcochofel-ai-agent` PAT | `ai-agent-git.yaml` (`ai-agent` key only) | read the user, then both homelab repos | the login is `bcochofel-ai-agent`; `push` true and `admin` false on each repo |
+| GitHub PAT | `homelab-ro.yaml` (`ai-agent` key only) | read each homelab repo | `200` |
+| `bcochofel-ai-agent` PAT | `ai-agent-git.yaml` (`ai-agent` key only) | read the user, then each homelab repo | the login is `bcochofel-ai-agent`; `push` true and `admin` false on each repo |
 | Cloudflare token | `caddy.sops.yaml` | look up zone `bcochofel.com` | `200` |
 | `PKR_VAR_password_hash`, `TF_VAR_cipassword`, `pihole_webpassword` | | set and not empty | `ok` |
 
@@ -710,7 +710,7 @@ its credential, not by how it's normally used.
 | Server | What it gives the AI agent | Credential |
 | --- | --- | --- |
 | Proxmox | VMs, nodes, storage and cluster state | `ai-agent@pve!ai-agent` (step 1), `AiAgentRO` role |
-| GitHub | Repos, issues, pull requests and Actions runs for both homelab repos | Fine-grained PAT, read-only |
+| GitHub | Repos, issues, pull requests and Actions runs for the homelab repos | Fine-grained PAT, read-only |
 | Terraform | Provider and module docs from the public registry (e.g. `bpg/proxmox`), so resources aren't written from memory | None |
 
 MCP servers for what the platform runs belong to
@@ -770,8 +770,8 @@ Developer settings → Fine-grained tokens → Generate new token*) and store
 it as `GITHUB_PERSONAL_ACCESS_TOKEN` in `homelab-ro.yaml`:
 
 - **Resource owner:** `BCochofelHomelab`.
-- **Repository access:** only `homelab-proxmox-core` and
-  `homelab-proxmox-platform`.
+- **Repository access:** only `homelab-proxmox-core`,
+  `homelab-proxmox-platform` and `terraform-elasticstack-workspace`.
 - **Repository permissions:** *Read-only* for Contents, Issues, Pull
   requests, Actions and Metadata. Nothing else, and no write access.
 
@@ -860,8 +860,8 @@ new token*):
 
 - **Resource owner:** `BCochofelHomelab`.
 - **Expiration:** 90 days.
-- **Repository access:** only `homelab-proxmox-core` and
-  `homelab-proxmox-platform`.
+- **Repository access:** only `homelab-proxmox-core`,
+  `homelab-proxmox-platform` and `terraform-elasticstack-workspace`.
 - **Repository permissions:** *Read and write* for Contents and Pull
   requests; *Read-only* for Actions, Issues and Metadata; *No access* for
   everything else, in particular Workflows, Administration, Secrets and
@@ -891,7 +891,7 @@ Write can merge its own pull requests.
 
 ```bash
 mise run secrets:check   # ai-agent-git.yaml opens with your key and the ai-agent key
-mise run check:creds     # the token is bcochofel-ai-agent's: push but not admin on both repos
+mise run check:creds     # the token is bcochofel-ai-agent's: push but not admin on each repo
 ```
 
 Then, in the devcontainer, `mise run check:boundary` proves git and `gh`
