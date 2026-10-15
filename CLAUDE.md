@@ -65,16 +65,26 @@ Topology:
   list is the single source of truth for the local zone, feeding only
   CoreDNS's zone file now.
 
-This repo is one of two that make up the homelab's overall architecture:
+This repo is one of three that make up the homelab's overall architecture:
 
 - **`homelab-proxmox-core`** (this repo) — the Caddy reverse proxy and
   CoreDNS+Pihole DNS pair, i.e. edge routing and name resolution for
   everything else.
-- **`../homelab-proxmox-platform`** — everything behind the edge. What
-  runs there, and with which tools, isn't decided yet, so don't name
-  specific services (Elastic, K3s, ...) when describing it.
+- **`../homelab-proxmox-platform`** — everything behind the edge: an
+  Elastic Stack (`es-01`..`03` `.30`-`.32`, `kibana` `.33` with Fleet
+  Server, `ingest` `.34`) and the OTel demo VM (`.35`), as Terramate
+  stacks plus Ansible; its own CLAUDE.md holds its design. It clones this
+  repo's template and VM module by tag.
+- **`../terraform-elasticstack-workspace`** — the OpenTofu module the
+  platform creates each Elastic workspace with (one per owner and
+  audience; namespace = workspace id).
+- All three follow this repo's guardrails: each has its own devcontainer,
+  `check:boundary`, deny rules and CI; workflows only from the human. No
+  GitHub App with write access is installed (`docs/SETUP.md`, *What
+  GitHub enforces*): an App acting as the machine user can push
+  workflows.
 
-Both repos share the same conventions: SOPS secrets, HCP state, mise
+All three share the same conventions: SOPS secrets, HCP state, mise
 toolchain, Docker Compose service style.
 
 ## Decisions that are deliberate (do not "fix" these)

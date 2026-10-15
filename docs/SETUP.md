@@ -81,23 +81,29 @@ Then, in its *Settings*:
 
 ### Repositories
 
-Two **public** repositories, `homelab-proxmox-core` and
-`homelab-proxmox-platform`, default branch `main`. Rebuilding: create
-each one **empty** (no README, licence or `.gitignore`), then push it from
-your clone, tags included:
+Three **public** repositories, default branch `main`:
+
+| Repository | Holds |
+| --- | --- |
+| `homelab-proxmox-core` | This repo: the edge (Caddy, CoreDNS, Pi-hole) and the dry-run runner |
+| `homelab-proxmox-platform` | Everything behind the edge: the Elastic Stack and the OTel demo |
+| `terraform-elasticstack-workspace` | The OpenTofu module the platform creates each Elastic workspace with |
+
+Rebuilding: create each one **empty** (no README, licence or
+`.gitignore`), then push it from your clone, tags included:
 
 ```bash
 git remote set-url origin git@github.com:BCochofelHomelab/homelab-proxmox-core.git
 git push -u origin main --tags
 ```
 
-*Settings → General*, in both:
+*Settings → General*, in all three:
 
 - **Pull requests:** squash and rebase merging only, merge commits off
   (`protected-default` requires linear history anyway); **Automatically
   delete head branches** on.
 
-*Settings → Advanced Security*, in both: **Secret scanning** and **Push
+*Settings → Advanced Security*, in all three: **Secret scanning** and **Push
 protection** on, so a pushed secret is blocked before it reaches GitHub
 (gitleaks only runs locally and in CI). Non-provider patterns, validity
 checks and Dependabot security updates stay off (no Dependabot, see
@@ -119,7 +125,7 @@ in `sre-lead`: its approval would count as a code owner's.
 
 ### CODEOWNERS
 
-`.github/CODEOWNERS`, in both repositories, already committed:
+`.github/CODEOWNERS`, in every repository, already committed:
 
 ```text
 * @BCochofelHomelab/sre-lead
@@ -186,7 +192,7 @@ for t in sre-lead sre-team; do
   echo "== $t: $(gh api orgs/$o/teams/$t/members --jq '.[].login' | paste -sd, -)"
   gh api orgs/$o/teams/$t/repos --jq '.[] | "  \(.name): \(.role_name)"'
 done
-for r in homelab-proxmox-core homelab-proxmox-platform; do
+for r in homelab-proxmox-core homelab-proxmox-platform terraform-elasticstack-workspace; do
   echo "== $r"
   gh api repos/$o/$r --jq '{visibility, allow_merge_commit, allow_squash_merge, allow_rebase_merge, delete_branch_on_merge, secret_scanning: .security_and_analysis.secret_scanning.status, push_protection: .security_and_analysis.secret_scanning_push_protection.status}'
   gh api repos/$o/$r/collaborators --jq '.[] | "  \(.login): \(.role_name)"'
@@ -305,9 +311,9 @@ or changes infrastructure. Most of that is enforced by GitHub; the rest by
    [`CREDENTIALS.md`](CREDENTIALS.md#the-machine-user) step 9) and
    two-factor authentication.
 2. **The organization:** invite it as a member, and add it to `sre-team`
-   only. That's its Write on both repositories; nothing else.
+   only. That's its Write on all three repositories; nothing else.
 3. **Its token**, signed in as the machine user: a fine-grained personal
-   access token, resource owner `BCochofelHomelab`, 90 days, only the two
+   access token, resource owner `BCochofelHomelab`, 90 days, only the three
    repositories:
 
    | Permission | Access |
@@ -335,6 +341,14 @@ The push-time control matters because a `pull_request` workflow runs the
 workflow file from the pull request's branch, not from `main`: CODEOWNERS
 alone couldn't stop an edited workflow from running.
 
+**No GitHub App with write access** on the organization or the machine
+user (the Claude GitHub App included). An App acting for the machine user
+pushes as that user but with the App's own permissions, Workflows
+included: its commits look like the machine user's, while the push-time
+control above no longer holds. A workflow pushed that way to a branch of
+a repository in the `homelab` runner group runs on `runner01` without
+your approval. The AI agent works only through its devcontainer.
+
 What GitHub doesn't stop, and `.claude/settings.json` does (a soft
 boundary, so you act accordingly): merging after your approval (merge
 right away), creating tags (`git tag` and tag pushes are denied), and
@@ -343,15 +357,16 @@ denied).
 
 **HTTPS, never SSH.** The machine user pushes with its token over HTTPS
 (the devcontainer rewrites SSH remotes): an SSH key can't be limited to
-two repositories or set to expire, and the Workflows block applies only
+the homelab's repositories or set to expire, and the Workflows block applies only
 to token pushes.
 
 ### MCP servers and the devcontainer
 
 1. **MCP servers** (Proxmox, GitHub, Terraform registry), all read-only:
    [`CREDENTIALS.md`](CREDENTIALS.md) step 8.
-2. **The devcontainer**, in the AI agent's own clone
-   (`~/Projects/ai-agent/homelab-proxmox-core`), never yours:
+2. **The devcontainer**, in the AI agent's own clone of each repository
+   (`~/Projects/ai-agent/<repository>`), never yours: each repository has
+   its own, with its own `check:boundary`. This one's:
    [`DEVCONTAINER.md`](DEVCONTAINER.md) and
    [`CREDENTIALS.md`](CREDENTIALS.md) step 10. In the container, `gh` is
    `.devcontainer/bin/gh`, which runs as `bcochofel-ai-agent` with the
@@ -363,8 +378,9 @@ to token pushes.
 **Check**, in the container: `mise run check:boundary`, every line `ok`,
 including its git and GitHub section (commits as `bcochofel-ai-agent`,
 `main` requires a code owner, a workflow push is refused). On WSL,
-`mise run check:creds` shows the token can push to both repositories but
-not administer them.
+`mise run check:creds` shows the token can push to all three repositories
+but not administer them. Then the same `check:boundary` in each other
+repository's devcontainer.
 
 ## Stage 8. The dry-run runner (optional)
 
@@ -409,7 +425,8 @@ In this order:
 
 1. **The runner group** (*Organization settings → Actions → Runner groups
    → New runner group*): name `homelab`; *Repository access*: *Selected
-   repositories*, both homelab repositories, *Allow public repositories*
+   repositories*, `homelab-proxmox-core` and `homelab-proxmox-platform`
+   only (the module never needs the runner), *Allow public repositories*
    checked; *Workflow access*: **All workflows** (below).
 2. **The VM:** `runner01` already exists, from stage 5's `tofu apply`, and
    `site.yml` bootstrapped it.

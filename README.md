@@ -37,12 +37,15 @@ Packer (template)  ->  Terraform (clone VMs + generate inventory)  ->  Ansible (
 Editable source: [`docs/diagrams/architecture.drawio`](docs/diagrams/architecture.drawio)
 (open in [app.diagrams.net](https://app.diagrams.net)).
 
-This repo is one of two that make up the homelab:
+This repo is one of three that make up the homelab:
 
 - **`homelab-proxmox-core`** (this repo) — edge routing and name
   resolution: the Caddy reverse proxy and the CoreDNS + Pihole DNS pair.
 - **[`homelab-proxmox-platform`](https://github.com/BCochofelHomelab/homelab-proxmox-platform)**
-  — everything that runs behind it.
+  — everything that runs behind it: an Elastic Stack and the
+  OpenTelemetry demo.
+- **[`terraform-elasticstack-workspace`](https://github.com/BCochofelHomelab/terraform-elasticstack-workspace)**
+  — the OpenTofu module the platform creates each Elastic workspace with.
 
 ### The tools
 
