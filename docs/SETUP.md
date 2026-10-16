@@ -628,6 +628,10 @@ all denied to the AI agent:
   `HOMELAB_DRY_RUN=1`: a backstop, since a pull request could remove it.
 - Every dry-run shows the CoreDNS zone file's new serial and a restart: the
   serial is the time of the run, by design (`db.zone.j2`).
+- A site the pull request adds to `caddy_sites` isn't deployed during a
+  dry-run (no DNS record, no Caddy config yet), so `99-healthcheck.yml`
+  checks only the sites in the Caddyfile already on the host, and lists the
+  new ones as *not deployed yet*. The run that applies them checks them.
 
 ## Red button
 

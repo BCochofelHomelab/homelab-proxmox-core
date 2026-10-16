@@ -13,6 +13,7 @@ but never stops the playbook.
 | Home Assistant | Raspberry Pi 3 | `192.168.68.11:80` | Backend of `ha.homelab.bcochofel.com` | [Home Assistant](#home-assistant) |
 | QTS admin UI, Web Station | QNAP | `192.168.68.10` | Backends of `nas` and `www` | Nothing to configure |
 | Proxmox VE web UI | Proxmox | `192.168.68.20:8006` | Backend of `pve1` | Nothing to configure |
+| Kibana | `homelab-proxmox-platform`'s `kibana` VM | `192.168.68.33:5601` | Backend of `kibana` | [Kibana](#kibana) |
 | ISP router | Vodafone Ultra Hub 7 | — | Internet access for the LAN, in front of the Deco | [ISP router](#isp-router) |
 
 Keep the fixed addresses out of the router's DHCP pool, or reserve them
@@ -344,6 +345,33 @@ A 400 through Caddy means step 2 is missing; a 502 means Caddy can't
 reach the Pi on port 80 (check the *Server port* from step 2). Don't
 check with `curl -I`: Home Assistant answers `HEAD` requests with 405,
 even when everything works.
+
+## Kibana
+
+Kibana runs on `homelab-proxmox-platform`'s `kibana` VM, over HTTPS on
+`192.168.68.33:5601`, with a certificate from that repo's internal CA
+(`CN=Homelab Platform CA`, its `ansible/pki/elastic-ca.crt`). Caddy
+publishes it as `https://kibana.homelab.bcochofel.com` and verifies the
+backend against that CA alone: a copy of its certificate is
+`ansible/files/trust/platform-elastic.crt` here (`caddy_trusted_cas`,
+and `trusted_ca: platform-elastic` on the site). The DNS record points at
+Caddy (`192.168.68.16`); the `kibana` VM has no record of its own.
+
+The platform sets up Kibana itself, with `server.publicBaseUrl`
+`https://kibana.homelab.bcochofel.com`. Nothing to configure here, except
+**when the platform rotates its CA**: copy the new `elastic-ca.crt` over
+`ansible/files/trust/platform-elastic.crt`, in a pull request, then run
+`mise run ansible:site`. Until then, the `kibana` site answers 502.
+
+```bash
+# From a LAN machine, with the CA certificate from this repo:
+# Kibana answers directly, with a certificate from the platform's CA...
+curl -s -o /dev/null -w "%{http_code}\n" --cacert ansible/files/trust/platform-elastic.crt \
+  https://192.168.68.33:5601/api/status
+
+# ...and through Caddy, with a valid certificate (302 to the login page, not 502)
+curl -s -o /dev/null -w "%{http_code}\n" https://kibana.homelab.bcochofel.com
+```
 
 ## ISP router
 

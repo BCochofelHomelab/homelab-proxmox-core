@@ -38,15 +38,24 @@ Packer (template) -> Terraform (clone VMs + generate inventory) -> Ansible (conf
 Topology:
 
 - `proxy` (`192.168.68.16`, `proxy.homelab.bcochofel.com`) runs Caddy in
-  Docker Compose. Caddy fronts four sites today —
+  Docker Compose. Caddy fronts five sites today —
   `nas.homelab.bcochofel.com` (QNAP QTS admin UI),
   `www.homelab.bcochofel.com` (QNAP Web Station / Home Studio KB pages),
-  `pve1.homelab.bcochofel.com` (the Proxmox VE web UI itself) and
-  `ha.homelab.bcochofel.com` (Home Assistant on the Raspberry Pi 3) — see
+  `pve1.homelab.bcochofel.com` (the Proxmox VE web UI itself),
+  `ha.homelab.bcochofel.com` (Home Assistant on the Raspberry Pi 3) and
+  `kibana.homelab.bcochofel.com` (`homelab-proxmox-platform`'s Kibana,
+  `https://192.168.68.33:5601`) — see
   `ansible/inventory/group_vars/all.yml`'s `caddy_sites` for the live list.
   Sites for `homelab-proxmox-platform` backends are added the same way; a
-  backend with a private CA gets `trusted_ca` (`caddy_trusted_cas`, none
-  today).
+  backend with a private CA gets `trusted_ca` (`caddy_trusted_cas`:
+  `platform-elastic`, a copy of the platform's CA certificate in
+  `ansible/files/trust/`, replaced by hand when it rotates). `nas` and
+  `pve1` keep `insecure_skip_verify`: this repo manages neither backend's
+  certificate (QTS's self-signed one; whatever Proxmox serves on `:8006`),
+  so Caddy doesn't depend on it. Caddy's own Let's Encrypt cert is what
+  clients see.
+  `dns_hosts` also names the platform's VMs (`es-01`..`03`, `ingest`,
+  `otel-demo`); the `kibana` VM has none, its name is the Caddy site.
 - The `dns` VM (`192.168.68.15` VM management IP, Proxmox name/hostname
   `server01` — the Ansible inventory group is still `dns`, hardcoded in
   `terraform/templates/inventory.ini.tftpl` independent of the VM's own
@@ -162,7 +171,10 @@ toolchain, Docker Compose service style.
   valid TLS answer yet, while ACME issues on a fresh VM) with
   `follow_redirects: none`, so it judges Caddy, not a backend's redirect
   target; never `until: _sites.status is defined` — `uri` always returns a
-  `status` (`-1` on failure), so that never retries.
+  `status` (`-1` on failure), so that never retries. In `--check`, only
+  sites already in the host's Caddyfile are checked (read with `slurp`):
+  a site the change adds has no DNS record or Caddy config yet, and is
+  listed as not deployed instead.
 - **The `caddy` role restarts Caddy explicitly on Caddyfile/`.env` content
   changes.** `docker compose up -d --build` runs unconditionally every play
   (handlers race `community.docker.docker_compose_v2`'s idempotency check

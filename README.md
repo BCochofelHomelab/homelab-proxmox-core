@@ -215,8 +215,10 @@ on the NAS, outside this repo, so it's the one to watch.
 ## Adding a proxied site
 
 Edit `caddy_sites` in `ansible/inventory/group_vars/all.yml` (add an
-`fqdn`/`upstream` pair, optionally `insecure_skip_verify: true` if the
-upstream presents a self-signed cert), point that fqdn's DNS record at the
+`fqdn`/`upstream` pair; for an HTTPS backend, `trusted_ca` if its
+certificate comes from a private CA, `upstream_sni` if it's issued for a
+name rather than the IP, or `insecure_skip_verify: true` as a last resort
+for a self-signed one, see [`docs/ANSIBLE.md`](docs/ANSIBLE.md)), point that fqdn's DNS record at the
 Caddy VM's IP (see [DNS](#dns) below), then re-run
 `mise run ansible:site` — the Caddyfile template loops over
 this list, so no role changes needed.
@@ -294,14 +296,15 @@ system) is Pihole's:
 Pihole's self-signed cert means `https://` will warn in the browser; use
 `http://`. Caddy and CoreDNS have no web UI
 of their own — Caddy's whole job is fronting *other* systems' UIs
-(`nas`/`www`/`pve1`/`ha` in `caddy_sites`, all of which depend on
+(`nas`/`www`/`pve1`/`ha`/`kibana` in `caddy_sites`, all of which depend on
 something outside this repo), and CoreDNS only exposes a Prometheus metrics
 endpoint (`:9153`), not a dashboard.
 
 ## Verify
 
 - `https://nas.homelab.bcochofel.com`, `https://www.homelab.bcochofel.com`,
-  `https://pve1.homelab.bcochofel.com`, `https://ha.homelab.bcochofel.com`
+  `https://pve1.homelab.bcochofel.com`, `https://ha.homelab.bcochofel.com`,
+  `https://kibana.homelab.bcochofel.com`
   — each should present a real Let's Encrypt certificate (issued by Caddy
   itself) and proxy to its backend. The backends are external
   dependencies; Home Assistant needs a one-time proxy setting first, see
