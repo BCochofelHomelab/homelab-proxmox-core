@@ -478,6 +478,10 @@ summary.
 - **`ai-agent@pve!ai-agent`** — role `AiAgentRO` (`VM.Audit`,
   `VM.GuestAgent.Audit`, `Datastore.Audit`, `Sys.Audit`, `Pool.Audit`,
   `SDN.Audit`), read-only `tofu plan` and investigation.
+- **`inventory@pve!ansible`** — role `AnsibleInventory` (`VM.Audit`,
+  `VM.GuestAgent.Audit`, ACL on `/vms`), `homelab-proxmox-platform`'s
+  dynamic Ansible inventory. Its secret alone is `PROXMOX_TOKEN_SECRET`
+  in `homelab.yaml`; `check:creds` checks it.
 - PVE 9 dropped `VM.Monitor`; guest-agent access is `VM.GuestAgent.*`.
   Every role gets `VM.GuestAgent.Audit` (read-only: VM IPs) and **never**
   `VM.GuestAgent.Unrestricted` (runs programs in the VM), `FileRead`,
