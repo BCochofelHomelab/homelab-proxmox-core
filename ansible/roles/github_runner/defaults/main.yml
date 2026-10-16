@@ -33,3 +33,8 @@ github_runner_job_completed_hook: /usr/local/libexec/github-runner/job-completed
 # The registration token, only needed the first time: from
 # playbooks/30-github-runner.yml's prompt, never stored.
 github_runner_token: ""
+
+# The watchdog (templates/watchdog.sh.j2): how often it restarts the runner
+# when idle. The longest a job can wait for a stale runner to come back.
+github_runner_watchdog: /usr/local/libexec/github-runner/watchdog.sh
+github_runner_watchdog_interval: 15min

@@ -506,6 +506,7 @@ found=$(grep -rlI --exclude-dir=_temp -e AGE-SECRET-KEY- /home /root /opt /etc /
 { [ -f "$dir/.runner" ] || [ -f "$dir/.runner_migrated" ]; } && ok "the runner is registered" || fail "the runner isn't registered"
 svc=$(cat "$dir/.service" 2>/dev/null)
 [ -n "$svc" ] && systemctl is-active -q "$svc" && ok "its service is running ($svc)" || fail "its service isn't running"
+systemctl is-active -q github-runner-watchdog.timer && ok "the watchdog's timer is active" || fail "the watchdog's timer isn't active"
 listener=$(ps -o user= -C Runner.Listener 2>/dev/null | sort -u | paste -sd' ' -)
 [ "$listener" = "$u" ] && ok "the runner runs as $u" || fail "the runner runs as: ${listener:-nothing}"
 grep -qx 'HOMELAB_DRY_RUN=1' "$dir/.env" 2>/dev/null && ok "jobs get HOMELAB_DRY_RUN=1" || fail "HOMELAB_DRY_RUN=1 isn't in $dir/.env"

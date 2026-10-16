@@ -320,7 +320,11 @@ toolchain, Docker Compose service style.
   role (`30-github-runner.yml`, not in `site.yml`). The group allows *All
   workflows* on purpose: a branch-pinned workflow never matches a
   `pull_request` job's merge ref, so don't "tighten" it to
-  `dry-run.yml@refs/heads/main`. The HCP token is an `owners` team token
+  `dry-run.yml@refs/heads/main`. The role also installs a watchdog
+  (`github-runner-watchdog.timer`, every 15 minutes): it restarts the
+  runner whenever it's idle, because the network path drops its long-lived
+  broker polls and a dropped poll can lose a job; don't remove it to "fix"
+  restarts in the runner's log. The HCP token is an `owners` team token
   (org-scoped). `ci:check` writes `hosts.ini` from the `ansible_inventory`
   output (sensitive) in the state. The automation key is not in OpenTofu's
   `sshkeys` on purpose (cloud-init applies keys only at first boot, and a

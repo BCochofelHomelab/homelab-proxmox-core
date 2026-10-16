@@ -477,8 +477,13 @@ ssh ubuntu@runner01.homelab.bcochofel.com \
 
 **A dry-run job waits for a runner** while `runner01` shows *Online* and
 idle (*Organization settings → Actions → Runners*): its session with
-GitHub has gone stale. Restart the service; it takes the queued job within
-seconds. `check:runner` can't catch this, since the service is running:
+GitHub has gone stale. Something on the network path drops the runner's
+long-lived HTTPS polls to GitHub's job broker; the runner retries, but a
+poll that dies as a job is handed out can lose that job. The **watchdog**
+(`github-runner-watchdog.timer`, from the `github_runner` role) restarts
+the service whenever it's idle, every 15 minutes, so a job waits at most
+that long. Not to wait, restart it yourself; it takes the queued job
+within seconds:
 
 ```bash
 ssh ubuntu@runner01.homelab.bcochofel.com 'sudo systemctl restart "actions.runner.*"'
@@ -506,6 +511,9 @@ ssh ubuntu@runner01.homelab.bcochofel.com 'sudo systemctl restart "actions.runne
 - **Persistent, cleaned per job:** the runner empties each job's temp
   directory, and a root-owned job-completed hook empties its workspace.
   Every job gets `HOMELAB_DRY_RUN=1`, for `site.yml`'s guard.
+- **Watchdog:** a root-owned timer restarts the runner whenever it's idle,
+  every 15 minutes, so its connection to GitHub never goes stale (above).
+  Never during a job. `check:runner` checks the timer is active.
 - **Self-update on:** the `github_runner` role installs a pinned,
   checksum-verified version once; the runner updates itself after that,
   since GitHub stops sending jobs to runners it considers too old.

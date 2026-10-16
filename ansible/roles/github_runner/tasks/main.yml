@@ -190,7 +190,7 @@
     src: "{{ github_runner_dir }}/.service"
   register: _runner_service
   become: true
-  when: not ansible_check_mode or _runner_registered.stat.exists
+  when: not ansible_check_mode or (_runner_registration.results | selectattr('stat.exists') | list | length > 0)
 
 - name: Keep the runner running and enabled at boot
   ansible.builtin.systemd_service:
@@ -199,3 +199,57 @@
     enabled: true
   become: true
   when: _runner_service.content is defined
+
+# The watchdog: restarts the runner whenever it's idle, every
+# github_runner_watchdog_interval (templates/watchdog.sh.j2 says why). Root's,
+# in the hook's directory, so a job can't rewrite it.
+- name: Install the watchdog
+  ansible.builtin.template:
+    src: watchdog.sh.j2
+    dest: "{{ github_runner_watchdog }}"
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Install the watchdog's service and timer
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ item.name }}"
+    content: "{{ item.content }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - name: github-runner-watchdog.service
+      content: |
+        # {{ ansible_managed }}
+        [Unit]
+        Description=Restart the GitHub Actions runner when it's idle (homelab-proxmox-core)
+
+        [Service]
+        Type=oneshot
+        ExecStart={{ github_runner_watchdog }}
+    - name: github-runner-watchdog.timer
+      content: |
+        # {{ ansible_managed }}
+        [Unit]
+        Description=Restart the GitHub Actions runner when it's idle, every {{ github_runner_watchdog_interval }}
+
+        [Timer]
+        OnBootSec={{ github_runner_watchdog_interval }}
+        OnUnitActiveSec={{ github_runner_watchdog_interval }}
+
+        [Install]
+        WantedBy=timers.target
+  loop_control:
+    label: "{{ item.name }}"
+  become: true
+  register: _watchdog_units
+
+- name: Keep the watchdog's timer running and enabled at boot
+  ansible.builtin.systemd_service:
+    name: github-runner-watchdog.timer
+    state: started
+    enabled: true
+    daemon_reload: "{{ _watchdog_units is changed }}"
+  become: true

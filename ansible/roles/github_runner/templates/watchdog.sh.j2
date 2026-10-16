@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+# Runner watchdog (github-runner-watchdog.timer): restarts the runner's
+# service whenever it's idle, so its connection to GitHub's job broker is
+# never old enough to go stale. Something on the network path drops the
+# runner's long-lived HTTPS polls; the runner retries, but a poll that dies
+# as a job is handed out can lose that job, which then waits with the
+# runner online and idle (docs/SETUP.md, stage 8). A restart takes seconds
+# and opens fresh connections.
+#
+# Never while a job runs: Runner.Worker exists only then. A job assigned in
+# the instant before its worker starts would be cancelled and need a
+# re-run; with the timer's interval, that window is small.
+set -euo pipefail
+
+svc=$(cat "{{ github_runner_dir }}/.service" 2>/dev/null) || exit 0  # not installed yet
+if pgrep -u "{{ github_runner_user }}" -x Runner.Worker >/dev/null; then
+  exit 0
+fi
+systemctl restart "$svc"
