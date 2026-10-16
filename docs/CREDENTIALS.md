@@ -29,6 +29,10 @@ three Proxmox identities:
 A fourth, **`ci`**, belongs to the dry-run runner and is set up only once
 the runner exists (step 11).
 
+A fifth, **`inventory`**, belongs to `homelab-proxmox-platform`: its
+Ansible inventory is Proxmox's own list of VMs, read with this identity
+(read only). Set it up with the platform.
+
 What each command runs as:
 
 | You run | Identity | Proxmox API token | Proxmox role (what the token may do) | HCP Terraform token (state access) | Credentials come from |
@@ -40,6 +44,7 @@ What each command runs as:
 | Terraform MCP server | — | — | — | — | none needed |
 | `git push`, `gh` in the devcontainer | `ai-agent` on GitHub: machine user `bcochofel-ai-agent` | — | — | — | `~/.secrets/ai-agent-git.yaml` |
 | `ci:plan`, `ci:check` on the dry-run runner (step 11) | `ci` | `ci@pve!plan` | `AiAgentRO`: read only | a token that can write state (accepted risk) | `ci/dry-run.sops.yaml`, the `ci` key |
+| `mise run ansible:site` in `homelab-proxmox-platform` | `inventory` | `inventory@pve!ansible` | `AnsibleInventory`: list the VMs and read their config, read only | — | `~/.secrets/homelab.yaml` |
 
 - **Proxmox API token:** the credential the tool presents to the Proxmox
   API, in the form `user@realm!token-name`.
@@ -84,7 +89,7 @@ and the variable gets no default and `sensitive = true`.
 | Tier | Readable by | Where | Committed? | Holds |
 | --- | --- | --- | --- | --- |
 | **0. Public** | anyone | the repo, plain text | yes | Every non-secret input (`variables.tf`/`variables.pkr.hcl` defaults: IPs, sizes, the SSH and age **public** keys), `.sops.yaml`. |
-| **1. Yours only** | your key | `~/.secrets/homelab.yaml` | no | What changes infrastructure: the Packer and `terraform` Proxmox tokens, your HCP token, `cipassword`, the template's password hash. |
+| **1. Yours only** | your key | `~/.secrets/homelab.yaml` | no | What changes infrastructure: the Packer and `terraform` Proxmox tokens, your HCP token, `cipassword`, the template's password hash. Also the platform's read-only `inventory` token, which only your Ansible runs use. |
 | **2. You + CI** | your key, the `ci` key | `ci/`, `ansible/inventory/group_vars/*.sops.yaml` | yes, encrypted | What the dry-run runner needs: `ci@pve!plan`, the HCP team token, `cipassword`, the automation SSH key, and the inventory secrets (Cloudflare token, Pi-hole password). |
 | **3. You + AI agent** | your key, the `ai-agent` key | `~/.secrets/homelab-ro.yaml`, `~/.secrets/ai-agent-git.yaml` | no | Read-only credentials (the `ai-agent@pve` token, the GitHub MCP token) and the machine user's token. |
 | **4. Dry-run output** | your key, the `ai-agent` key | GitHub artifacts, 7 days | — | The full output of a dry-run (`plan.txt.age`, `check.txt.age`). Encrypted as defense in depth: it should hold no secret, but a value someone forgot to mark `sensitive` or `no_log` would show up in it. |
@@ -149,6 +154,10 @@ Datastore.AllocateSpace,Datastore.Audit,SDN.Use"
 # state or runs anything inside a VM.
 pveum role add AiAgentRO -privs "VM.Audit,VM.GuestAgent.Audit,\
 Datastore.Audit,Sys.Audit,Pool.Audit,SDN.Audit"
+
+# Read-only, homelab-proxmox-platform's Ansible inventory: list the VMs,
+# read their config and status, and their IPs from the guest agent.
+pveum role add AnsibleInventory -privs "VM.Audit,VM.GuestAgent.Audit"
 ```
 
 If a role already exists, `pveum role modify <role> -privs "<full list>"`
@@ -189,6 +198,17 @@ pveum acl modify / --users  'ai-agent@pve'            --roles AiAgentRO
 pveum acl modify / --tokens 'ai-agent@pve!ai-agent'   --roles AiAgentRO
 ```
 
+`inventory`, when you set up `homelab-proxmox-platform`. Its ACL is on
+`/vms`, not `/`: the inventory reads only VMs, never a node, storage or
+pool.
+
+```bash
+pveum user add inventory@pve --comment "Ansible dynamic inventory (homelab-proxmox-platform), read-only"
+pveum user token add inventory@pve ansible --privsep 1 --comment "ansible inventory"
+pveum acl modify /vms --users  'inventory@pve'         --roles AnsibleInventory
+pveum acl modify /vms --tokens 'inventory@pve!ansible' --roles AnsibleInventory
+```
+
 Each `token add` prints the secret **once**. Copy it straight into the
 matching SOPS file in step 5; it can't be retrieved later, only
 regenerated.
@@ -203,6 +223,7 @@ pveum acl list
 pveum user token permissions ai-agent@pve ai-agent --path /
 pveum user token permissions terraform@pve terraform --path /
 pveum user token permissions packer@pve packer --path /
+pveum user token permissions inventory@pve ansible --path /vms
 ```
 
 ## 2. HCP Terraform: workspace and tokens
@@ -360,7 +381,16 @@ PKR_VAR_password_hash: "<mkpasswd -m sha-512 '<password>', the template user>"
 TF_VAR_proxmox_api_token: "terraform@pve!terraform=<secret printed by pveum>"
 TF_VAR_cipassword: "<password for the cloud-init user on cloned VMs>"
 TF_TOKEN_app_terraform_io: "<your HCP user token, step 2>"
+# homelab-proxmox-platform's Ansible inventory (its mise run ansible:site)
+PROXMOX_TOKEN_SECRET: "<the secret only, printed by pveum, step 1>"
 ```
+
+`PROXMOX_TOKEN_SECRET` holds **only the secret**, the UUID `pveum`
+prints, unlike `TF_VAR_proxmox_api_token`, which holds the whole
+`user@realm!tokenid=secret`. The platform's inventory file names the user
+and token id, and the plugin puts the three together as
+`inventory@pve!ansible=<secret>`. A whole token in this key would repeat
+them, and Proxmox answers `401`.
 
 `~/.secrets/homelab-ro.yaml` (read-only, your key and the `ai-agent` key):
 
@@ -680,6 +710,7 @@ and checks that the values with no API to call are set:
 | `packer@pve!packer` | `homelab.yaml` | Proxmox `GET /version` | `200` |
 | `terraform@pve!terraform` | `homelab.yaml` | Proxmox `GET /version` | `200` |
 | HCP token | `homelab.yaml` | read workspace `homelab-bcochofel-com/core-caddy` | `200` |
+| `inventory@pve!ansible` | `homelab.yaml` (`PROXMOX_TOKEN_SECRET`) | Proxmox `GET /version` | `200`, or `ok ... not set yet` before the platform's setup |
 | `ai-agent@pve!ai-agent` | `homelab-ro.yaml` (`ai-agent` key only) | Proxmox `GET /version` | `200` |
 | GitHub PAT | `homelab-ro.yaml` (`ai-agent` key only) | read each homelab repo | `200` |
 | `bcochofel-ai-agent` PAT | `ai-agent-git.yaml` (`ai-agent` key only) | read the user, then each homelab repo | the login is `bcochofel-ai-agent`; `push` true and `admin` false on each repo |
