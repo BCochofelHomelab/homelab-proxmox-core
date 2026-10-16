@@ -291,8 +291,8 @@ pve="${PKR_VAR_proxmox_api_url%/}"
 check "Proxmox token packer@pve!packer" "$pve/version" < <(printf "Authorization: PVEAPIToken=%s=%s\n" "$PKR_VAR_proxmox_api_token_id" "$PKR_VAR_proxmox_api_token_secret")
 check "Proxmox token terraform (TF_VAR_proxmox_api_token)" "$pve/version" < <(printf "Authorization: PVEAPIToken=%s\n" "$TF_VAR_proxmox_api_token")
 check "HCP token, workspace homelab-bcochofel-com/core-caddy" https://app.terraform.io/api/v2/organizations/homelab-bcochofel-com/workspaces/core-caddy < <(printf "Authorization: Bearer %s\n" "$TF_TOKEN_app_terraform_io")
-# homelab-proxmox-platform's inventory token: the secret only, the user
-# and token id are in the platform's inventory file.
+# The inventory token of homelab-proxmox-platform: the secret only, the user
+# and token id are in the inventory file of the platform.
 if [ -z "$PROXMOX_TOKEN_SECRET" ]; then echo "ok    PROXMOX_TOKEN_SECRET not set yet (homelab-proxmox-platform)"
 else check "Proxmox token inventory@pve!ansible (PROXMOX_TOKEN_SECRET)" "$pve/version" < <(printf "Authorization: PVEAPIToken=inventory@pve!ansible=%s\n" "$PROXMOX_TOKEN_SECRET"); fi
 present PKR_VAR_password_hash "$PKR_VAR_password_hash"
