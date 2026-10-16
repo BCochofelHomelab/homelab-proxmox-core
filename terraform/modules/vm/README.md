@@ -34,6 +34,7 @@ No modules.
 | <a name="input_cipassword"></a> [cipassword](#input\_cipassword) | cloud-init password | `string` | n/a | yes |
 | <a name="input_ciuser"></a> [ciuser](#input\_ciuser) | cloud-init username | `string` | `"ubuntu"` | no |
 | <a name="input_cores"></a> [cores](#input\_cores) | vCPU cores | `number` | `2` | no |
+| <a name="input_data_disk"></a> [data\_disk](#input\_data\_disk) | Second, data disk in GB (scsi1), mounted by Ansible; null for none | `number` | `null` | no |
 | <a name="input_datastore_id"></a> [datastore\_id](#input\_datastore\_id) | Proxmox datastore for disk + cloud-init | `string` | `"local-lvm"` | no |
 | <a name="input_description"></a> [description](#input\_description) | VM description / notes | `string` | `"Managed by Terraform (vm module)"` | no |
 | <a name="input_disk"></a> [disk](#input\_disk) | Disk size in GB (>= template disk) | `number` | `60` | no |

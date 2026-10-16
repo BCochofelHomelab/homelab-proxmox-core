@@ -49,6 +49,12 @@ variable "disk" {
   default     = 60
 }
 
+variable "data_disk" {
+  type        = number
+  description = "Second, data disk in GB (scsi1), mounted by Ansible; null for none"
+  default     = null
+}
+
 variable "datastore_id" {
   type        = string
   description = "Proxmox datastore for disk + cloud-init"
