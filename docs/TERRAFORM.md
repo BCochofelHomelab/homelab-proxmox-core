@@ -18,6 +18,11 @@ cloud-init, and generates
   (`module.caddy`, `module.server01`, `module.runner01`) — the DNS containers' macvlan IPs are Docker-level config
   applied by Ansible, not a Terraform/Proxmox-level concern, so `dns_node`
   only carries the one VM-level IP.
+  `data_disk` (GB, default `null`) adds an optional second disk on
+  `scsi1`, for VMs that keep their data apart from the OS disk; core's
+  own VMs don't use it. It's created empty: whoever uses it formats and
+  mounts it, finding it at
+  `/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi1`.
 - `templates/inventory.ini.tftpl` — renders the Ansible inventory (INI
   format): `[caddy]`, `[dns]` and `[github_runner]` groups.
 - State: HCP Terraform workspace `core-caddy` (state only — Execution Mode

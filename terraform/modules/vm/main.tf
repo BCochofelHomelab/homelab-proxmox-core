@@ -40,6 +40,21 @@ resource "proxmox_virtual_environment_vm" "this" {
     ssd          = true
   }
 
+  # Optional data disk, created empty: whoever uses it formats and mounts it
+  # (Ansible finds it at /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi1).
+  dynamic "disk" {
+    for_each = var.data_disk == null ? [] : [var.data_disk]
+    content {
+      interface    = "scsi1"
+      datastore_id = var.datastore_id
+      size         = disk.value
+      file_format  = "raw"
+      discard      = "on"
+      ssd          = true
+      iothread     = true
+    }
+  }
+
   network_device {
     bridge = var.network_bridge
     model  = "virtio"
