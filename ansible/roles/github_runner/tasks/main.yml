@@ -222,7 +222,7 @@
   loop:
     - name: github-runner-watchdog.service
       content: |
-        # {{ ansible_managed }}
+        # Managed by Ansible (homelab-proxmox-core, role github_runner): don't edit.
         [Unit]
         Description=Restart the GitHub Actions runner when it's idle (homelab-proxmox-core)
 
@@ -231,7 +231,7 @@
         ExecStart={{ github_runner_watchdog }}
     - name: github-runner-watchdog.timer
       content: |
-        # {{ ansible_managed }}
+        # Managed by Ansible (homelab-proxmox-core, role github_runner): don't edit.
         [Unit]
         Description=Restart the GitHub Actions runner when it's idle, every {{ github_runner_watchdog_interval }}
 
