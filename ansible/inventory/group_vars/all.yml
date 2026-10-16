@@ -32,22 +32,33 @@ caddy_sites:
     upstream: "http://192.168.68.10:80"
   - fqdn: pve1.homelab.bcochofel.com
     upstream: "https://192.168.68.20:8006"
-    # Proxmox's default self-signed cert — drop this if a real cert is
-    # ever set on Proxmox itself. Proxmox's noVNC/xterm.js console uses
-    # WebSockets over this same port; Caddy's reverse_proxy handles the
-    # HTTP Upgrade transparently, no extra config needed.
-    insecure_skip_verify: true
+    # Proxmox's own Let's Encrypt cert, issued for this name only, so
+    # Caddy verifies it by name rather than by the IP
+    # (docs/EXTERNAL-DEPENDENCIES.md#proxmox-ve-certificate). Proxmox's
+    # noVNC/xterm.js console uses WebSockets over this same port; Caddy's
+    # reverse_proxy handles the HTTP Upgrade transparently, no extra
+    # config needed.
+    upstream_sni: pve1.homelab.bcochofel.com
   - fqdn: ha.homelab.bcochofel.com
     # Home Assistant on the Raspberry Pi 3 (not managed by this repo). It
     # answers 400 until it trusts Caddy as a proxy — see
     # docs/EXTERNAL-DEPENDENCIES.md#home-assistant.
     upstream: "http://192.168.68.11:80"
+  - fqdn: kibana.homelab.bcochofel.com
+    # Kibana on homelab-proxmox-platform's kibana VM (.33), over HTTPS
+    # with a cert from the platform's internal CA, verified against that
+    # CA alone. The cert lists the VM's IP, so no upstream_sni.
+    upstream: "https://192.168.68.33:5601"
+    trusted_ca: platform-elastic
 
 # CA certificates Caddy trusts for HTTPS backends, by name: a site's
 # `trusted_ca: <name>` verifies its backend against
 # files/trust/<name>.crt (mounted at /etc/caddy/trust/ in the container).
-# Public certificates only. None today.
-caddy_trusted_cas: []
+# Public certificates only.
+caddy_trusted_cas:
+  # homelab-proxmox-platform's internal CA (its ansible/pki/elastic-ca.crt):
+  # Kibana's cert. Replace the file here when the platform rotates its CA.
+  - platform-elastic
 
 # ACME account contact — not a secret, so it's a plain value here rather
 # than routed through ~/.secrets/ or a .sops.yaml file.

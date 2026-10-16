@@ -126,9 +126,12 @@ playbooks, pass the key yourself:
      - `insecure_skip_verify: true` — upstream presents a self-signed cert
        on the LAN hop (e.g. the QNAP admin UI); doesn't weaken the
        public-facing TLS Caddy itself terminates.
+     - `trusted_ca: <name>` — upstream's cert comes from a private CA
+       (e.g. Kibana, from `homelab-proxmox-platform`'s CA): Caddy verifies
+       it against `files/trust/<name>.crt` alone (`tls_trust_pool`).
      - `upstream_sni: <hostname>` — upstream is addressed by IP but
-       presents a cert issued for its own hostname (e.g. a backend that
-       terminates its own Let's Encrypt cert for its fqdn — without
+       presents a cert issued for its own hostname (e.g. `pve1`, whose
+       Let's Encrypt cert names only its fqdn — without
        `tls_server_name` set to that hostname, Caddy's default TLS
        verification checks the cert against the IP instead and fails).
        This is TLS bridging — two independent TLS sessions
