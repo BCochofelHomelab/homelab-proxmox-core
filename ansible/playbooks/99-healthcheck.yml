@@ -85,6 +85,34 @@
       register: _caddy_info
       failed_when: not _caddy_info.container.State.Running
 
+    # In --check (the dry-run), nothing is applied: a site this change adds
+    # has no DNS record and no Caddy config yet, so it can't answer. Only
+    # the sites in the Caddyfile already on the host are checked then; the
+    # new ones are listed, and checked by the run that applies them.
+    - name: Read the deployed Caddyfile (check mode)
+      ansible.builtin.slurp:
+        src: "{{ caddy_base_dir }}/Caddyfile"
+      register: _deployed_caddyfile
+      when: ansible_check_mode
+
+    - name: Choose the sites to check
+      ansible.builtin.set_fact:
+        _sites_checked: >-
+          {{ caddy_sites if not ansible_check_mode
+             else caddy_sites | selectattr('fqdn', 'in', _live_fqdns) | list }}
+      vars:
+        _live_fqdns: >-
+          {{ (_deployed_caddyfile.content | default('') | b64decode).splitlines()
+             | select('match', '^[a-z0-9.-]+ [{]$')
+             | map('regex_replace', ' [{]$', '') | list }}
+
+    - name: List sites this change adds (check mode, checked after apply)
+      ansible.builtin.debug:
+        msg: "{{ item.fqdn }}: new in this change, not deployed yet, so not checked"
+      loop: "{{ caddy_sites | difference(_sites_checked) }}"
+      loop_control:
+        label: "{{ item.fqdn }}"
+
     # Status -1 means no HTTPS answer with a valid cert (connection or TLS
     # failure) — Caddy's problem, so retried while ACME issuance completes
     # on a fresh VM. Any real HTTP status means Caddy is fine; whether the
@@ -97,7 +125,7 @@
         # Judge Caddy's own answer: following a backend's redirect (e.g. to
         # its own hostname or IP) would test the backend's cert, not Caddy's.
         follow_redirects: none
-      loop: "{{ caddy_sites }}"
+      loop: "{{ _sites_checked }}"
       loop_control:
         label: "{{ item.fqdn }}"
       register: _sites

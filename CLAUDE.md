@@ -171,7 +171,10 @@ toolchain, Docker Compose service style.
   valid TLS answer yet, while ACME issues on a fresh VM) with
   `follow_redirects: none`, so it judges Caddy, not a backend's redirect
   target; never `until: _sites.status is defined` — `uri` always returns a
-  `status` (`-1` on failure), so that never retries.
+  `status` (`-1` on failure), so that never retries. In `--check`, only
+  sites already in the host's Caddyfile are checked (read with `slurp`):
+  a site the change adds has no DNS record or Caddy config yet, and is
+  listed as not deployed instead.
 - **The `caddy` role restarts Caddy explicitly on Caddyfile/`.env` content
   changes.** `docker compose up -d --build` runs unconditionally every play
   (handlers race `community.docker.docker_compose_v2`'s idempotency check
