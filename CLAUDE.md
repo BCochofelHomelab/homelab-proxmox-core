@@ -41,8 +41,7 @@ Topology:
   Docker Compose. Caddy fronts five sites today —
   `nas.homelab.bcochofel.com` (QNAP QTS admin UI),
   `www.homelab.bcochofel.com` (QNAP Web Station / Home Studio KB pages),
-  `pve1.homelab.bcochofel.com` (the Proxmox VE web UI itself, whose own
-  Let's Encrypt cert Caddy verifies by name, `upstream_sni`),
+  `pve1.homelab.bcochofel.com` (the Proxmox VE web UI itself),
   `ha.homelab.bcochofel.com` (Home Assistant on the Raspberry Pi 3) and
   `kibana.homelab.bcochofel.com` (`homelab-proxmox-platform`'s Kibana,
   `https://192.168.68.33:5601`) — see
@@ -50,8 +49,11 @@ Topology:
   Sites for `homelab-proxmox-platform` backends are added the same way; a
   backend with a private CA gets `trusted_ca` (`caddy_trusted_cas`:
   `platform-elastic`, a copy of the platform's CA certificate in
-  `ansible/files/trust/`, replaced by hand when it rotates). No site uses
-  `insecure_skip_verify` except `nas` (QTS's self-signed cert).
+  `ansible/files/trust/`, replaced by hand when it rotates). `nas` and
+  `pve1` keep `insecure_skip_verify`: this repo manages neither backend's
+  certificate (QTS's self-signed one; whatever Proxmox serves on `:8006`),
+  so Caddy doesn't depend on it. Caddy's own Let's Encrypt cert is what
+  clients see.
   `dns_hosts` also names the platform's VMs (`es-01`..`03`, `ingest`,
   `otel-demo`); the `kibana` VM has none, its name is the Caddy site.
 - The `dns` VM (`192.168.68.15` VM management IP, Proxmox name/hostname

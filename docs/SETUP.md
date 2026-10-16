@@ -222,10 +222,6 @@ errors; and `read` for the workflow permissions.
    user token: step 2.
 4. **Cloudflare:** the `bcochofel.com` zone, and Caddy's DNS-01 token
    (DNS Write and Zone Read on that zone only): step 3.
-5. **`pve1`'s certificate:** a Let's Encrypt certificate for
-   `pve1.homelab.bcochofel.com`, from Proxmox's own ACME, which Caddy's
-   `pve1` site verifies by name:
-   [`EXTERNAL-DEPENDENCIES.md`](EXTERNAL-DEPENDENCIES.md#proxmox-ve-certificate).
 
 **Check:** `pveum user token permissions terraform@pve terraform --path /`
 on the node lists `TofuApply`'s privileges.

@@ -32,13 +32,11 @@ caddy_sites:
     upstream: "http://192.168.68.10:80"
   - fqdn: pve1.homelab.bcochofel.com
     upstream: "https://192.168.68.20:8006"
-    # Proxmox's own Let's Encrypt cert, issued for this name only, so
-    # Caddy verifies it by name rather than by the IP
-    # (docs/EXTERNAL-DEPENDENCIES.md#proxmox-ve-certificate). Proxmox's
-    # noVNC/xterm.js console uses WebSockets over this same port; Caddy's
-    # reverse_proxy handles the HTTP Upgrade transparently, no extra
-    # config needed.
-    upstream_sni: pve1.homelab.bcochofel.com
+    # Proxmox's default self-signed cert — drop this if a real cert is
+    # ever set on Proxmox itself. Proxmox's noVNC/xterm.js console uses
+    # WebSockets over this same port; Caddy's reverse_proxy handles the
+    # HTTP Upgrade transparently, no extra config needed.
+    insecure_skip_verify: true
   - fqdn: ha.homelab.bcochofel.com
     # Home Assistant on the Raspberry Pi 3 (not managed by this repo). It
     # answers 400 until it trusts Caddy as a proxy — see

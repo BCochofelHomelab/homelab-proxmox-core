@@ -12,7 +12,7 @@ but never stops the playbook.
 | Pi-hole secondary (`pihole2`) | QNAP Container Station | `192.168.68.6` | Second ad-blocking resolver handed out by DHCP | [Pi-hole secondary](#pi-hole-secondary) |
 | Home Assistant | Raspberry Pi 3 | `192.168.68.11:80` | Backend of `ha.homelab.bcochofel.com` | [Home Assistant](#home-assistant) |
 | QTS admin UI, Web Station | QNAP | `192.168.68.10` | Backends of `nas` and `www` | Nothing to configure |
-| Proxmox VE web UI | Proxmox | `192.168.68.20:8006` | Backend of `pve1` | [Proxmox VE certificate](#proxmox-ve-certificate) |
+| Proxmox VE web UI | Proxmox | `192.168.68.20:8006` | Backend of `pve1` | Nothing to configure |
 | Kibana | `homelab-proxmox-platform`'s `kibana` VM | `192.168.68.33:5601` | Backend of `kibana` | [Kibana](#kibana) |
 | ISP router | Vodafone Ultra Hub 7 | — | Internet access for the LAN, in front of the Deco | [ISP router](#isp-router) |
 
@@ -345,31 +345,6 @@ A 400 through Caddy means step 2 is missing; a 502 means Caddy can't
 reach the Pi on port 80 (check the *Server port* from step 2). Don't
 check with `curl -I`: Home Assistant answers `HEAD` requests with 405,
 even when everything works.
-
-## Proxmox VE certificate
-
-`pve1` serves its web UI and API on `192.168.68.20:8006` with a Let's
-Encrypt certificate for `pve1.homelab.bcochofel.com`, which Proxmox
-requests and renews itself (*Datacenter → ACME*, *pve1 → System →
-Certificates*). Caddy verifies it by that name (`upstream_sni` on the
-`pve1` site), so it needs no exception. `homelab-proxmox-platform`'s
-Ansible inventory reaches the Proxmox API through this site
-(`https://pve1.homelab.bcochofel.com`).
-
-If the certificate expires, or Proxmox goes back to its self-signed one,
-Caddy refuses the backend and the `pve1` site answers 502: the
-healthcheck reports it, and the platform's inventory fails. Renew it in
-Proxmox; never add `insecure_skip_verify` to the site.
-
-```bash
-# From a LAN machine: the certificate, its name and its expiry
-echo | openssl s_client -connect 192.168.68.20:8006 -servername pve1.homelab.bcochofel.com 2>/dev/null \
-  | openssl x509 -noout -subject -issuer -enddate
-#   expect: subject=CN=pve1.homelab.bcochofel.com, issuer ... O=Let's Encrypt
-
-# ...and through Caddy (200)
-curl -s -o /dev/null -w "%{http_code}\n" https://pve1.homelab.bcochofel.com
-```
 
 ## Kibana
 
