@@ -32,7 +32,8 @@ that.
 - Items that span both repos are split into a **core** and a
   **platform** line, each ticked on its own.
 
-How each piece is set up: [`SETUP.md`](SETUP.md).
+How each piece is set up: [`SETUP.md`](SETUP.md); for `homelab-proxmox-platform`, its own
+[`docs/SETUP.md`](https://github.com/BCochofelHomelab/homelab-proxmox-platform/blob/main/docs/SETUP.md).
 
 ## Where it stands
 
@@ -40,16 +41,16 @@ Update this table whenever an item is ticked.
 
 | Section | Done | Open | Where it stands |
 | --- | --- | --- | --- |
-| A1. Identity | 7 | 3 | Every principal exists but a read-only state token, platform's automation key and `ai-agent-scheduled`. |
+| A1. Identity | 9 | 2 | Every principal exists but a read-only state token and `ai-agent-scheduled`; platform's Elastic key is scoped. |
 | A2. Command audit trail | 0 | 4 | Not started. |
 | A3. Secret tiers | 2 | 1 | Core done: the tiers, the tier 0 rule and the secret-variable check; platform open. 4 items superseded. |
 | A4. Shared secret files | 1 | 1 | Core done; platform open. |
 | A5. Host shell hygiene | 1 | 0 | Done. |
 | A6. Devcontainer | 2 | 1 | Core done; platform open. |
 | A7. Ansible secrets (platform) | 1 | 1 | Platform open, if it uses Ansible. |
-| A8. Investigation MCPs | 1 | 4 | Core's three done; GitHub Issues write waits for Phase C; three only if platform runs Kubernetes. |
-| A9. Telemetry coverage | 1 | 7 | Core's VMs report to Fleet; `pve1`'s agent (by hand) and the rest open. |
-| A10. Dry-run executor | 8 | 5 | Working and proven: runner, `ci` identity, workflow, PR comments, a fork's pull request never reaching the runner, the red button drill. Open: the five "later" items. The runner's telemetry superseded. |
+| A8. Investigation MCPs | 1 | 5 | Core's three done; platform's read-only Elasticsearch MCP proposed; GitHub Issues write waits for Phase C; three only if platform runs Kubernetes. |
+| A9. Telemetry coverage | 1 | 7 | Core's VMs report to Fleet; platform's `check:telemetry` waits on `pve1`'s agent (by hand); the rest open. |
+| A10. Dry-run executor | 8 | 5 | Working and proven: runner, `ci` identity, workflow, PR comments, a fork's pull request never reaching the runner, the red button drill. Platform's dry-run runs; its line waits on `check:runner` covering its environment. Open: the five "later" items. The runner's telemetry superseded. |
 | Phase B. Detection | 0 | 5 | Not started. |
 | Phase C. Assisted investigation | 0 | 6 | Not started. |
 | Phase D. Evaluation data | 0 | 4 | Not started. |
@@ -152,8 +153,15 @@ can read state without being able to write it.
       devcontainer (see A7). Core first: its Packer template, and the
       `ci_ssh_key` role for existing VMs;
       the private half committed encrypted as `ci/ssh_ed25519.key.sops`.
-- [ ] **Platform:** the same automation public key on its hosts, with its
+- [x] **Platform:** the same automation public key on its hosts, with its
       dry-run (A10 "Later").
+- [x] **Platform:** OpenTofu's Elastic API key (`ELASTICSEARCH_API_KEY`,
+      tier 1, `homelab.yaml`) scoped to what its stacks manage, not
+      `superuser`, with an expiry; rotating it re-keys the alert rules
+      that run on it ([`docs/ELASTIC-API-KEY.md`](https://github.com/BCochofelHomelab/homelab-proxmox-platform/blob/main/docs/ELASTIC-API-KEY.md)).
+      The unscoped key it replaced is invalidated; the CI plan has its own
+      read-only key. `check:creds` authenticates it against `es-01`,
+      verified against the platform's CA.
 - [x] `ci` principal for dry-runs: Proxmox `ci@pve!plan` (`AiAgentRO`),
       a `ci` age key, and `ci/dry-run.sops.yaml` (`TF_VAR_proxmox_api_token`,
       `TF_VAR_cipassword`, `TF_TOKEN_app_terraform_io`), encrypted to the
@@ -324,6 +332,12 @@ attempting a mutating call and confirming it's refused.
 - [x] Core's three servers (Proxmox, GitHub, Terraform) set up per
       `docs/CREDENTIALS.md` step 8, with each negative test there
       passing.
+- [ ] **Platform:** a read-only Elasticsearch MCP, Elastic's standalone
+      `mcp-server-elasticsearch` (Kibana's Agent Builder MCP endpoint
+      needs Enterprise): its own key with `read`, `view_index_metadata`
+      and `monitor` on `logs-*`, `metrics-*`, `traces-*` only, TLS
+      verified against the platform's CA, and a document write and a role
+      write refused in `check:boundary`. Proposed, not built.
 - [ ] GitHub MCP: add **Issues: write** to its PAT only when Phase C
       starts filing issues; everything else stays read-only.
 - [ ] Only if platform runs Kubernetes: Kubernetes MCP, a dedicated RO ServiceAccount and `ClusterRole`
@@ -359,7 +373,10 @@ attempting a mutating call and confirming it's refused.
       `proxmox`), installed by hand
       ([`EXTERNAL-DEPENDENCIES.md`](EXTERNAL-DEPENDENCIES.md#elastic-agent-on-pve1)).
       Done when it shows healthy in Fleet.
-- [ ] **Platform:** confirm every one of its hosts reports its telemetry.
+- [ ] **Platform:** confirm every one of its hosts reports its telemetry
+      (`mise run check:telemetry` there: each agent online in Fleet on its
+      policy, and its host metrics arriving in its policy's namespace).
+      Done when it's all `ok`, core's hosts and `pve1` included.
 - [ ] The QNAP secondaries' logs (CoreDNS and Pi-hole, above): decide how
       they reach Elastic.
 - [ ] CoreDNS metrics (`prometheus` plugin) and Caddy metrics/access logs

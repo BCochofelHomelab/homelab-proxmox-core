@@ -460,7 +460,7 @@ In this order:
 6. **Check:**
 
    ```bash
-   mise run check:runner   # every line ok, the last two: reviewer sre-lead, no admin bypass
+   mise run check:runner   # every line ok, the last four: each repo's reviewer sre-lead, no admin bypass
    mise run ci:plan   # No changes
    mise run ci:check  # failed=0; only CoreDNS's zone serial and restart change
    ```
@@ -618,9 +618,11 @@ all denied to the AI agent:
   Docker, no age key outside a job's temp directory, the runner is
   registered and runs as `gha-runner`, `HOMELAB_DRY_RUN=1`, the hook is
   root's. Then, from your machine: `ci@pve!plan` gets a 403 on a write, and
-  the `dry-run` environment has a required reviewer and no administrator
-  bypass. Without that reviewer, a pull request's code runs on `runner01`
-  with the `ci` key, unapproved: the environment is the boundary.
+  the `dry-run` environment of each repo that dry-runs on `runner01` (this
+  one and `homelab-proxmox-platform`) has a required reviewer and no
+  administrator bypass. Without that reviewer, a pull request's code runs
+  on `runner01` with the `ci` key, unapproved: each environment is a
+  boundary.
 
 `ci:plan` and `ci:check` take the `ci` key from `SOPS_AGE_KEY`
 (CI) or `~/.config/sops/age/ci.txt` (your machine).
