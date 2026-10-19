@@ -1,0 +1,30 @@
+---
+# Set per group, in group_vars: elastic_agent_policy_id (the group's Fleet
+# agent policy, in <group>.yml) and elastic_agent_enrollment_token (that
+# policy's token from Fleet -> Enrollment tokens, in <group>.sops.yaml). A
+# host whose groups set no policy id gets no agent (20-elastic-agent.yml).
+
+# The tarball the agent is installed from, once (default, "basic" flavor).
+# Never newer than homelab-proxmox-platform's stack: an agent must not be
+# newer than its Fleet Server.
+elastic_agent_version: "9.5.4"
+elastic_agent_name: "elastic-agent-{{ elastic_agent_version }}-linux-x86_64"
+elastic_agent_url: "https://artifacts.elastic.co/downloads/beats/elastic-agent/{{ elastic_agent_name }}.tar.gz"
+elastic_agent_download_dir: /root/elastic-agent-download
+
+# Elastic's signing key, trusted for the tarball only once it's the one key
+# with this fingerprint. Used from the download directory, never installed.
+elastic_agent_key_url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+elastic_agent_key_fingerprint: 46095ACC8548582C1A2699A9D27D666CD88E42B4 # gitleaks:allow (a public key's fingerprint, not a secret)
+
+# Fleet Server, on the platform's kibana VM. Its certificate is signed by
+# the platform's internal CA, the one Caddy trusts for Kibana
+# (files/trust/platform-elastic.crt). The policy carries everything else,
+# the Logstash output (192.168.68.34:5044) and its client certificate
+# included.
+elastic_agent_fleet_url: https://192.168.68.33:8220
+elastic_agent_ca_src: "{{ playbook_dir }}/../files/trust/platform-elastic.crt"
+elastic_agent_ca: /etc/elastic-agent/ca.crt
+
+# Where `elastic-agent install` links the agent's binary.
+elastic_agent_binary: /usr/bin/elastic-agent

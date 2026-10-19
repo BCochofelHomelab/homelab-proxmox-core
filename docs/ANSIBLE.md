@@ -1,4 +1,4 @@
-# Ansible — Caddy + DNS configuration
+# Ansible — Caddy, DNS and Elastic Agent configuration
 
 Third stage of the pipeline: configures the VMs Terraform just cloned. Run
 from `ansible/`, using the repo-root `.venv/`, which mise activates
@@ -171,6 +171,30 @@ playbooks, pass the key yourself:
   the `homelab` runner group (`.runner` absent; the token from the
   playbook's prompt, `no_log`) and runs it as a systemd service
   (`svc.sh`).
+- **`elastic_agent`** — Elastic Agent, enrolled into
+  `homelab-proxmox-platform`'s Fleet, on every host whose groups set
+  `elastic_agent_policy_id`: `proxy` and `server01` (policy `core`),
+  `runner01` (`core-runner`: the system integration only, since Docker
+  stays masked there). Copies the platform's CA
+  (`files/trust/platform-elastic.crt`, the one Caddy trusts for Kibana) to
+  `/etc/elastic-agent/ca.crt`. If the agent isn't installed, it downloads
+  Elastic's tarball at `elastic_agent_version` (never newer than the
+  platform's stack) into a root-only directory and checks it before it
+  runs: Elastic's signing key must be one key with the pinned fingerprint
+  `46095ACC8548582C1A2699A9D27D666CD88E42B4`, the `.asc` signature must
+  be that key's (`gpgv`), then the `.sha512` must match. Then
+  `elastic-agent install --non-interactive` enrolls it against Fleet
+  Server (`https://192.168.68.33:8220`) with the group's
+  `elastic_agent_enrollment_token` (`no_log`). The agent runs as root, its
+  default. An installed agent is enrolled only when `elastic-agent status`
+  says it isn't managed (`info.is_managed`): enrolling a managed agent again
+  registers a duplicate in Fleet. Moving it to another policy is done in
+  Fleet. Fleet is external: a failed enrollment shows as failed, then
+  ignored, and the health check reports it. The policy sends the rest,
+  the Logstash output (`192.168.68.34:5044`, mTLS with a client
+  certificate from Fleet) included. The Proxmox node `pve1` isn't in the
+  inventory: its agent is set up by hand
+  ([`EXTERNAL-DEPENDENCIES.md`](EXTERNAL-DEPENDENCIES.md#elastic-agent-on-pve1)).
 
 ## Adding or changing a proxied site
 
@@ -223,6 +247,8 @@ group_vars, all hand-authored and never overwritten:
   `dns_base_dir`, the `dns_macvlan_*` network config, `coredns_version`,
   `dns_hosts`, and server01's own Pihole instance settings (`pihole_ip`,
   `pihole_base_dir`).
+- `inventory/group_vars/caddy.yml`, `github_runner.yml` (and
+  `dns.yml`) — each group's `elastic_agent_policy_id`.
 - `inventory/group_vars/pihole.yml` — scoped to `[pihole]`:
   `pihole_version`, `pihole_timezone`, `pihole_revserver_subnet`, and
   `pihole_webpassword` (from `pihole.sops.yaml`). Single source of truth
@@ -239,6 +265,8 @@ group_vars, all hand-authored and never overwritten:
 - `05-dns.yml` — two plays: `hosts: dns` runs `dns_network` -> `coredns`;
   `hosts: pihole` runs `pihole`.
 - `10-caddy.yml` — `hosts: caddy`, runs `caddy`.
+- `20-elastic-agent.yml` — `hosts: all`, runs `elastic_agent` on the
+  hosts with an `elastic_agent_policy_id`.
 - `30-github-runner.yml` — `hosts: github_runner`, runs `github_runner`.
   **Not in `site.yml`**: `mise run ansible:runner` runs it, asking for a
   registration token (only needed the first time,
@@ -262,12 +290,19 @@ group_vars, all hand-authored and never overwritten:
     status means Caddy works; the backend counts as ready on
     200/301/302/401/403. Anything else (502/504 from Caddy when the
     backend is down, or the backend's own error) is an external issue.
+  - Elastic Agent play (`hosts: all`, the hosts with an
+    `elastic_agent_policy_id`): waits for `elastic-agent status --output
+    json` to show the agent managed, healthy (`state` 2) and connected to
+    Fleet (`FleetState` 2). Anything else is an external issue: not
+    installed or not enrolled (Fleet unreachable when it enrolled), or
+    the status Fleet's policy left it in. In `--check`, an agent that
+    isn't installed yet is listed instead.
   - Summary play: prints every external issue collected above, or "All
     external dependencies are ready.".
 - `site.yml` — a dry-run guard play first (it refuses anything but
   `--check` where `HOMELAB_DRY_RUN=1`, i.e. on the CI runner), then chains
   the playbooks via `import_playbook`, in order (bootstrap -> CI SSH key
-  -> dns -> caddy -> healthcheck). This is what
+  -> dns -> caddy -> Elastic Agent -> healthcheck). This is what
   `ansible-playbook playbooks/site.yml` actually runs.
 
 ## Secrets
@@ -278,6 +313,10 @@ only group that needs it, so no other host ever sees it:
 - `inventory/group_vars/caddy.sops.yaml` — `cloudflare_api_token`
   (Caddy's DNS-01 ACME).
 - `inventory/group_vars/pihole.sops.yaml` — `pihole_webpassword`.
+- `inventory/group_vars/caddy.sops.yaml`, `dns.sops.yaml` and
+  `github_runner.sops.yaml` — `elastic_agent_enrollment_token`, the
+  group's Fleet policy's enrollment token (`core` for the first two,
+  `core-runner`), copied from Kibana (Fleet -> Enrollment tokens).
 
 Each is encrypted to your key and the `ci` key (`.sops.yaml`), so the CI
 dry-run runner's `ansible-playbook --check` can read them; never to the

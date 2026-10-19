@@ -328,10 +328,20 @@ echo "== ansible/inventory/group_vars/*.sops.yaml (your key)"
 SOPS_AGE_KEY_FILE=$me sops exec-env "{{config_root}}/ansible/inventory/group_vars/caddy.sops.yaml" "bash -c '$lib"'
 present cloudflare_api_token "$cloudflare_api_token"
 check "Cloudflare token, zone bcochofel.com" "https://api.cloudflare.com/client/v4/zones?name=bcochofel.com" < <(printf "Authorization: Bearer %s\n" "$cloudflare_api_token")
+present "elastic_agent_enrollment_token (caddy)" "$elastic_agent_enrollment_token"
 exit $rc'"'" || rc=1
 SOPS_AGE_KEY_FILE=$me sops exec-env "{{config_root}}/ansible/inventory/group_vars/pihole.sops.yaml" "bash -c '$lib"'
 present pihole_webpassword "$pihole_webpassword"
 exit $rc'"'" || rc=1
+# Fleet enrollment tokens: set only, since enrolling is the one call that
+# would use one, and it registers an agent.
+for g in dns github_runner; do
+  f="{{config_root}}/ansible/inventory/group_vars/$g.sops.yaml"
+  if [ ! -e "$f" ]; then echo "FAIL  ansible/inventory/group_vars/$g.sops.yaml is missing (docs/CREDENTIALS.md step 5)"; rc=1; continue; fi
+  SOPS_AGE_KEY_FILE=$me sops exec-env "$f" "bash -c '$lib"'
+present "elastic_agent_enrollment_token ($0)" "$elastic_agent_enrollment_token"
+exit $rc'"' $g" || rc=1
+done
 
 echo "== ci/ (the ci key only: the dry-run runner's credentials, docs/SETUP.md)"
 ci="$HOME/.config/sops/age/ci.txt"

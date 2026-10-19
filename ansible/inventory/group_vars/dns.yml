@@ -40,6 +40,11 @@ coredns_version: "1.14.6"
 pihole_ip: 192.168.68.5
 pihole_base_dir: "{{ dns_base_dir }}/pihole"
 
+# homelab-proxmox-platform's Fleet agent policy for core's hosts (roles/
+# elastic_agent). Its enrollment token is elastic_agent_enrollment_token in
+# dns.sops.yaml.
+elastic_agent_policy_id: core
+
 # ---- Single source of truth for the local zone ----
 # Only coredns's zone file (templates/db.zone.j2) renders from this list.
 # Pihole holds no local records — it's ad-blocking only and conditionally

@@ -1,0 +1,7 @@
+galaxy_info:
+  author: Bruno Cochofel
+  description: Elastic Agent from Elastic's signed tarball, enrolled into homelab-proxmox-platform's Fleet with its group's token
+  license: MIT
+  min_ansible_version: "2.15"
+  galaxy_tags: []
+dependencies: []

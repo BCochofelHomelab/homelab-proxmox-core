@@ -108,9 +108,10 @@ worth catching at build time.
 
 ### ADR-3: Elastic Agent baked in, not enrolled (superseded)
 
-**Superseded:** the template no longer installs Elastic Agent. How core's
-hosts are observed is `homelab-proxmox-platform`'s decision, so this
-template carries nothing for it. `scripts/30-install-elastic-agent.sh`,
+**Superseded:** the template no longer installs Elastic Agent. Ansible
+installs and enrolls it into `homelab-proxmox-platform`'s Fleet
+(`ansible/roles/elastic_agent`, `docs/ANSIBLE.md`), so this template
+carries nothing for it. `scripts/30-install-elastic-agent.sh`,
 `install_elastic_agent` and `elastic_agent_version` were removed. The
 number stays taken.
 
