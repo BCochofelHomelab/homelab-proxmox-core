@@ -49,8 +49,8 @@ Update this table whenever an item is ticked.
 | A6. Devcontainer | 2 | 1 | Core done; platform open. |
 | A7. Ansible secrets (platform) | 1 | 1 | Platform open, if it uses Ansible. |
 | A8. Investigation MCPs | 1 | 5 | Core's three done; platform's read-only Elasticsearch MCP proposed; GitHub Issues write waits for Phase C; three only if platform runs Kubernetes. |
-| A9. Telemetry coverage | 2 | 6 | Core's VMs and platform's hosts report (`check:telemetry`); `pve1`'s agent (by hand) and the rest open. |
-| A10. Dry-run executor | 8 | 5 | Working and proven: runner, `ci` identity, workflow, PR comments, a fork's pull request never reaching the runner, the red button drill. Open: the five "later" items. The runner's telemetry superseded. |
+| A9. Telemetry coverage | 1 | 7 | Core's VMs report to Fleet; platform's `check:telemetry` waits on `pve1`'s agent (by hand); the rest open. |
+| A10. Dry-run executor | 8 | 5 | Working and proven: runner, `ci` identity, workflow, PR comments, a fork's pull request never reaching the runner, the red button drill. Platform's dry-run runs; its line waits on `check:runner` covering its environment. Open: the five "later" items. The runner's telemetry superseded. |
 | Phase B. Detection | 0 | 5 | Not started. |
 | Phase C. Assisted investigation | 0 | 6 | Not started. |
 | Phase D. Evaluation data | 0 | 4 | Not started. |
@@ -159,8 +159,9 @@ can read state without being able to write it.
       tier 1, `homelab.yaml`) scoped to what its stacks manage, not
       `superuser`, with an expiry; rotating it re-keys the alert rules
       that run on it ([`docs/ELASTIC-API-KEY.md`](https://github.com/BCochofelHomelab/homelab-proxmox-platform/blob/main/docs/ELASTIC-API-KEY.md)).
-      `check:creds` authenticates it against `es-01`, verified against the
-      platform's CA.
+      The unscoped key it replaced is invalidated; the CI plan has its own
+      read-only key. `check:creds` authenticates it against `es-01`,
+      verified against the platform's CA.
 - [x] `ci` principal for dry-runs: Proxmox `ci@pve!plan` (`AiAgentRO`),
       a `ci` age key, and `ci/dry-run.sops.yaml` (`TF_VAR_proxmox_api_token`,
       `TF_VAR_cipassword`, `TF_TOKEN_app_terraform_io`), encrypted to the
@@ -372,9 +373,10 @@ attempting a mutating call and confirming it's refused.
       `proxmox`), installed by hand
       ([`EXTERNAL-DEPENDENCIES.md`](EXTERNAL-DEPENDENCIES.md#elastic-agent-on-pve1)).
       Done when it shows healthy in Fleet.
-- [x] **Platform:** confirm every one of its hosts reports its telemetry
+- [ ] **Platform:** confirm every one of its hosts reports its telemetry
       (`mise run check:telemetry` there: each agent online in Fleet on its
       policy, and its host metrics arriving in its policy's namespace).
+      Done when it's all `ok`, core's hosts and `pve1` included.
 - [ ] The QNAP secondaries' logs (CoreDNS and Pi-hole, above): decide how
       they reach Elastic.
 - [ ] CoreDNS metrics (`prometheus` plugin) and Caddy metrics/access logs
