@@ -295,6 +295,10 @@ check "HCP token, workspace homelab-bcochofel-com/core-caddy" https://app.terraf
 # and token id are in the inventory file of the platform.
 if [ -z "$PROXMOX_TOKEN_SECRET" ]; then echo "ok    PROXMOX_TOKEN_SECRET not set yet (homelab-proxmox-platform)"
 else check "Proxmox token inventory@pve!ansible (PROXMOX_TOKEN_SECRET)" "$pve/version" < <(printf "Authorization: PVEAPIToken=inventory@pve!ansible=%s\n" "$PROXMOX_TOKEN_SECRET"); fi
+# OpenTofu Elastic API key of homelab-proxmox-platform: any valid key may
+# call _authenticate; 401 means expired or invalidated.
+if [ -z "$ELASTICSEARCH_API_KEY" ]; then echo "ok    ELASTICSEARCH_API_KEY not set yet (homelab-proxmox-platform)"
+else check "Elastic API key (ELASTICSEARCH_API_KEY), GET /_security/_authenticate" https://192.168.68.30:9200/_security/_authenticate < <(printf "Authorization: ApiKey %s\n" "$ELASTICSEARCH_API_KEY"); fi
 present PKR_VAR_password_hash "$PKR_VAR_password_hash"
 present TF_VAR_cipassword "$TF_VAR_cipassword"
 exit $rc'"'" || rc=1

@@ -468,7 +468,11 @@ summary.
 - **Secret files (keys are env var names):** `~/.secrets/homelab.yaml`
   (read-write: `PKR_VAR_*` incl. the Packer token and `password_hash`, the
   `terraform` `TF_VAR_proxmox_api_token`, `TF_VAR_cipassword`, the HCP
-  read-write `TF_TOKEN_app_terraform_io` — human key only),
+  read-write `TF_TOKEN_app_terraform_io`, and two credentials
+  `homelab-proxmox-platform` uses: `PROXMOX_TOKEN_SECRET` and its
+  OpenTofu's `ELASTICSEARCH_API_KEY`, the `encoded` field, scoped and
+  rotated per its `docs/ELASTIC-API-KEY.md`; `check:creds` calls
+  `GET /_security/_authenticate` on `es-01` — human key only),
   `~/.secrets/homelab-ro.yaml` (read-only: the `PROXMOX_*` (the
   `ai-agent` Proxmox token) and `GITHUB_PERSONAL_ACCESS_TOKEN` MCP
   credentials, no OpenTofu/HCP keys — human + `ai-agent` keys), `ansible/inventory/group_vars/caddy.sops.yaml`
