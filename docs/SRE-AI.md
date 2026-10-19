@@ -48,7 +48,7 @@ Update this table whenever an item is ticked.
 | A6. Devcontainer | 2 | 1 | Core done; platform open. |
 | A7. Ansible secrets (platform) | 1 | 1 | Platform open, if it uses Ansible. |
 | A8. Investigation MCPs | 1 | 4 | Core's three done; GitHub Issues write waits for Phase C; three only if platform runs Kubernetes. |
-| A9. Telemetry coverage | 0 | 7 | Core's Elastic Agent open: Ansible for the VMs, `pve1` by hand; the rest open. |
+| A9. Telemetry coverage | 1 | 7 | Core's VMs report to Fleet; `pve1`'s agent (by hand) and the rest open. |
 | A10. Dry-run executor | 8 | 5 | Working and proven: runner, `ci` identity, workflow, PR comments, a fork's pull request never reaching the runner, the red button drill. Open: the five "later" items. The runner's telemetry superseded. |
 | Phase B. Detection | 0 | 5 | Not started. |
 | Phase C. Assisted investigation | 0 | 6 | Not started. |
@@ -349,14 +349,16 @@ attempting a mutating call and confirming it's refused.
       with platform's design. The CoreDNS and Pi-hole secondaries run in QNAP
       Container Station, outside Ansible: their logs need a decision then
       too.
-- [ ] **Core:** Fleet-managed Elastic Agent on `proxy`, `server01` (policy
+- [x] **Core:** Fleet-managed Elastic Agent on `proxy`, `server01` (policy
       `core`) and `runner01` (`core-runner`, the system integration only),
       installed from Elastic's verified tarball and enrolled by Ansible
-      (`elastic_agent` role, one enrollment token per group in SOPS), and
-      on the Proxmox node `pve1` (`proxmox`) by hand
-      ([`EXTERNAL-DEPENDENCIES.md`](EXTERNAL-DEPENDENCIES.md#elastic-agent-on-pve1)).
-      Done when all four show healthy in Fleet, `ansible:site` reports no
+      (`elastic_agent` role, one enrollment token per group in SOPS). Done
+      when all three show healthy in Fleet, `ansible:site` reports no
       agent issue and `check:runner` passes.
+- [ ] **Core:** Elastic Agent on the Proxmox node `pve1` (policy
+      `proxmox`), installed by hand
+      ([`EXTERNAL-DEPENDENCIES.md`](EXTERNAL-DEPENDENCIES.md#elastic-agent-on-pve1)).
+      Done when it shows healthy in Fleet.
 - [ ] **Platform:** confirm every one of its hosts reports its telemetry.
 - [ ] The QNAP secondaries' logs (CoreDNS and Pi-hole, above): decide how
       they reach Elastic.
