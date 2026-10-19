@@ -472,7 +472,9 @@ summary.
   `homelab-proxmox-platform` uses: `PROXMOX_TOKEN_SECRET` and its
   OpenTofu's `ELASTICSEARCH_API_KEY`, the `encoded` field, scoped and
   rotated per its `docs/ELASTIC-API-KEY.md`; `check:creds` calls
-  `GET /_security/_authenticate` on `es-01` — human key only),
+  `GET /_security/_authenticate` on `es-01`, verified against
+  `files/trust/platform-elastic.crt` (`check`'s optional CA argument;
+  every other check keeps `-k`) — human key only),
   `~/.secrets/homelab-ro.yaml` (read-only: the `PROXMOX_*` (the
   `ai-agent` Proxmox token) and `GITHUB_PERSONAL_ACCESS_TOKEN` MCP
   credentials, no OpenTofu/HCP keys — human + `ai-agent` keys), `ansible/inventory/group_vars/caddy.sops.yaml`

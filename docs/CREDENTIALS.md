@@ -738,7 +738,7 @@ and checks that the values with no API to call are set:
 | `terraform@pve!terraform` | `homelab.yaml` | Proxmox `GET /version` | `200` |
 | HCP token | `homelab.yaml` | read workspace `homelab-bcochofel-com/core-caddy` | `200` |
 | `inventory@pve!ansible` | `homelab.yaml` (`PROXMOX_TOKEN_SECRET`) | Proxmox `GET /version` | `200`, or `ok ... not set yet` before the platform's setup |
-| `ELASTICSEARCH_API_KEY` | `homelab.yaml` | Elasticsearch `GET /_security/_authenticate` (`es-01`) | `200`, or `ok ... not set yet` before the platform's setup |
+| `ELASTICSEARCH_API_KEY` | `homelab.yaml` | Elasticsearch `GET /_security/_authenticate` (`es-01`), its certificate verified against the platform's CA | `200`, or `ok ... not set yet` before the platform's setup |
 | `ai-agent@pve!ai-agent` | `homelab-ro.yaml` (`ai-agent` key only) | Proxmox `GET /version` | `200` |
 | GitHub PAT | `homelab-ro.yaml` (`ai-agent` key only) | read each homelab repo | `200` |
 | `bcochofel-ai-agent` PAT | `ai-agent-git.yaml` (`ai-agent` key only) | read the user, then each homelab repo | the login is `bcochofel-ai-agent`; `push` true and `admin` false on each repo |
@@ -764,6 +764,10 @@ return one; it never contains the credential). If a line fails:
   `caddy.sops.yaml` (exact key name, no quotes, spaces or `<...>` around
   the token).
 - `000`: the service wasn't reached: check the host and port values.
+  For Elasticsearch, also a certificate not signed by the platform's CA
+  (`ansible/files/trust/platform-elastic.crt`): the key is never sent
+  then. If the platform rotated its CA, replace that file
+  ([`EXTERNAL-DEPENDENCIES.md`](EXTERNAL-DEPENDENCIES.md#kibana)).
 
 ## 8. MCP servers for the AI agent
 

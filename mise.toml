@@ -272,10 +272,13 @@ rc=0
 lib='
 rc=0
 present() { if [ -n "$2" ]; then echo "ok    $1 is set"; else echo "FAIL  $1 is missing or empty"; rc=1; fi; }
-# check LABEL URL: reads the Authorization header from stdin, expects 200.
+# check LABEL URL [CA]: reads the Authorization header from stdin, expects
+# 200. With CA, the server certificate must be signed by it (HTTP 000 if
+# not); without, it is not verified.
 check() {
   body=$(mktemp)
-  code=$(curl -sk -o "$body" -w "%{http_code}" -H @- "$2")
+  if [ -n "$3" ]; then tls=(--cacert "$3"); else tls=(-k); fi
+  code=$(curl -s "${tls[@]}" -o "$body" -w "%{http_code}" -H @- "$2")
   if [ "$code" = 200 ]; then echo "ok    $1 (HTTP 200)"
   else
     msg=$(grep -o "\"message\": *\"[^\"]*\"" "$body" | head -2 | cut -d\" -f4 | paste -sd ";" -)
@@ -296,9 +299,11 @@ check "HCP token, workspace homelab-bcochofel-com/core-caddy" https://app.terraf
 if [ -z "$PROXMOX_TOKEN_SECRET" ]; then echo "ok    PROXMOX_TOKEN_SECRET not set yet (homelab-proxmox-platform)"
 else check "Proxmox token inventory@pve!ansible (PROXMOX_TOKEN_SECRET)" "$pve/version" < <(printf "Authorization: PVEAPIToken=inventory@pve!ansible=%s\n" "$PROXMOX_TOKEN_SECRET"); fi
 # OpenTofu Elastic API key of homelab-proxmox-platform: any valid key may
-# call _authenticate; 401 means expired or invalidated.
+# call _authenticate; 401 means expired or invalidated. The key can write
+# users and roles, so es-01 must prove itself with the platform CA (the
+# copy Caddy trusts for Kibana) before the key is sent.
 if [ -z "$ELASTICSEARCH_API_KEY" ]; then echo "ok    ELASTICSEARCH_API_KEY not set yet (homelab-proxmox-platform)"
-else check "Elastic API key (ELASTICSEARCH_API_KEY), GET /_security/_authenticate" https://192.168.68.30:9200/_security/_authenticate < <(printf "Authorization: ApiKey %s\n" "$ELASTICSEARCH_API_KEY"); fi
+else check "Elastic API key (ELASTICSEARCH_API_KEY), GET /_security/_authenticate" https://192.168.68.30:9200/_security/_authenticate "{{config_root}}/ansible/files/trust/platform-elastic.crt" < <(printf "Authorization: ApiKey %s\n" "$ELASTICSEARCH_API_KEY"); fi
 present PKR_VAR_password_hash "$PKR_VAR_password_hash"
 present TF_VAR_cipassword "$TF_VAR_cipassword"
 exit $rc'"'" || rc=1
