@@ -50,7 +50,7 @@ Update this table whenever an item is ticked.
 | A7. Ansible secrets (platform) | 1 | 1 | Platform open, if it uses Ansible. |
 | A8. Investigation MCPs | 1 | 5 | Core's three done; platform's read-only Elasticsearch MCP proposed; GitHub Issues write waits for Phase C; three only if platform runs Kubernetes. |
 | A9. Telemetry coverage | 1 | 7 | Core's VMs report to Fleet; platform's `check:telemetry` waits on `pve1`'s agent (by hand); the rest open. |
-| A10. Dry-run executor | 8 | 5 | Working and proven: runner, `ci` identity, workflow, PR comments, a fork's pull request never reaching the runner, the red button drill. Platform's dry-run runs; its line waits on `check:runner` covering its environment. Open: the five "later" items. The runner's telemetry superseded. |
+| A10. Dry-run executor | 9 | 4 | Working and proven: runner, `ci` identity, workflow, PR comments, a fork's pull request never reaching the runner, the red button drill, and platform's dry-run on the same runner. Open: the four "later" items. The runner's telemetry superseded. |
 | Phase B. Detection | 0 | 5 | Not started. |
 | Phase C. Assisted investigation | 0 | 6 | Not started. |
 | Phase D. Evaluation data | 0 | 4 | Not started. |
@@ -453,7 +453,7 @@ and the agent reads the result. Apply stays human-only.
 
 Later, each only after the dry-run path has a track record:
 
-- [ ] Build the dry-run into `homelab-proxmox-platform` from its first
+- [x] Build the dry-run into `homelab-proxmox-platform` from its first
       pull request: the same runner, `ci` identity and `dry-run`
       environment, its own plan and check, and `check:runner` covering its
       environment too.
