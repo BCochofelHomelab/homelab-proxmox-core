@@ -238,12 +238,42 @@ toolchain, Docker Compose service style.
   so every restart there re-triggers a full AXFR from the primary —
   outside this repo's control.
 - **Packer builds `ubuntu-26.04`**, minimal: Docker only. No Elastic
-  Agent and no enrollment (template README ADR-3, superseded): how core's
-  hosts are observed waits for `homelab-proxmox-platform`
-  (`docs/SRE-AI.md` A9). No in-VM Trivy,
+  Agent in the template (README ADR-3, superseded): Ansible installs it
+  (below). No in-VM Trivy,
   no Alloy/system_report/custom-CA tooling. Trivy is used at the repo
   level to scan this repo's IaC (`.trivy.yaml`/`.trivyignore`,
   `docs/TERRAFORM.md`).
+- **Elastic Agent: the `elastic_agent` role (`20-elastic-agent.yml`, in
+  `site.yml`), on every host whose group sets `elastic_agent_policy_id`**
+  (`caddy.yml`/`dns.yml`: `core`; `github_runner.yml`: `core-runner`,
+  system only, Docker stays masked) — the Fleet agent policies of
+  `homelab-proxmox-platform`, which owns them. Elastic's tarball at
+  `elastic_agent_version` (never newer than the platform's stack),
+  checked before it runs: the signing key must be the one key with the
+  pinned fingerprint, the `.asc` must be that key's (`gpgv` VALIDSIG),
+  then the `.sha512`; key and keyring live only in the root-only
+  download directory, removed after. `install --non-interactive` against
+  Fleet Server `https://192.168.68.33:8220` with
+  `--certificate-authorities=/etc/elastic-agent/ca.crt` (a copy of
+  `files/trust/platform-elastic.crt`). The token is
+  `elastic_agent_enrollment_token` in `group_vars/<group>.sops.yaml`
+  (`caddy`, `dns`, `github_runner`; human + `ci`), copied by the human
+  from Fleet: never fetched from Fleet's API (that's the platform's
+  role, with the platform's `elastic` password). Enrolled once: an
+  installed agent is enrolled only when `elastic-agent status` says
+  `info.is_managed` false (then `enroll --force`, which only skips the
+  prompt); one whose status can't be read is left alone. Never re-enroll
+  a managed agent: it registers a duplicate. `no_log` on every task with
+  the token on its command line. Fleet is external: a failed enrollment
+  is `ignore_errors`, and `99-healthcheck.yml` reports each agent's status
+  (managed, `state` 2, `FleetState` 2) as an external issue. The agent
+  runs as root; on `runner01` it adds no user to a group and no age key,
+  so `check:runner` passes. Data goes to Logstash `192.168.68.34:5044`
+  over mTLS with a client certificate from the policy: nothing to set on
+  the hosts. `pve1` stays out of the inventory (adding the hypervisor
+  would put the `ci` key on it via `01-ci-ssh-key.yml`): its agent
+  (policy `proxmox`) is installed by hand from
+  `docs/EXTERNAL-DEPENDENCIES.md`, with the same checks.
 - **Terraform and Ansible are decoupled** — no `local-exec` chaining. Run
   `tofu apply` (from `terraform/`) then `ansible-playbook
   playbooks/site.yml` (from `ansible/`) as two separate, explicit commands.
@@ -442,8 +472,9 @@ summary.
   `~/.secrets/homelab-ro.yaml` (read-only: the `PROXMOX_*` (the
   `ai-agent` Proxmox token) and `GITHUB_PERSONAL_ACCESS_TOKEN` MCP
   credentials, no OpenTofu/HCP keys — human + `ai-agent` keys), `ansible/inventory/group_vars/caddy.sops.yaml`
-  (`cloudflare_api_token`) and `.../pihole.sops.yaml`
-  (`pihole_webpassword`) — human + `ci` keys, never `ai-agent` (even
+  (`cloudflare_api_token`, `elastic_agent_enrollment_token`),
+  `.../pihole.sops.yaml` (`pihole_webpassword`), `.../dns.sops.yaml` and
+  `.../github_runner.sops.yaml` (`elastic_agent_enrollment_token`) — human + `ci` keys, never `ai-agent` (even
   `--check` decrypts them; the agent's Ansible remit is lint and
   syntax-check), `~/.secrets/ai-agent-git.yaml` (`GH_TOKEN`, the
   machine user's fine-grained PAT — human + `ai-agent` keys). Human key

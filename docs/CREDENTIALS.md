@@ -90,7 +90,7 @@ and the variable gets no default and `sensitive = true`.
 | --- | --- | --- | --- | --- |
 | **0. Public** | anyone | the repo, plain text | yes | Every non-secret input (`variables.tf`/`variables.pkr.hcl` defaults: IPs, sizes, the SSH and age **public** keys), `.sops.yaml`. |
 | **1. Yours only** | your key | `~/.secrets/homelab.yaml` | no | What changes infrastructure: the Packer and `terraform` Proxmox tokens, your HCP token, `cipassword`, the template's password hash. Also the platform's read-only `inventory` token, which only your Ansible runs use. |
-| **2. You + CI** | your key, the `ci` key | `ci/`, `ansible/inventory/group_vars/*.sops.yaml` | yes, encrypted | What the dry-run runner needs: `ci@pve!plan`, the HCP team token, `cipassword`, the automation SSH key, and the inventory secrets (Cloudflare token, Pi-hole password). |
+| **2. You + CI** | your key, the `ci` key | `ci/`, `ansible/inventory/group_vars/*.sops.yaml` | yes, encrypted | What the dry-run runner needs: `ci@pve!plan`, the HCP team token, `cipassword`, the automation SSH key, and the inventory secrets (Cloudflare token, Pi-hole password, Fleet enrollment tokens). |
 | **3. You + AI agent** | your key, the `ai-agent` key | `~/.secrets/homelab-ro.yaml`, `~/.secrets/ai-agent-git.yaml` | no | Read-only credentials (the `ai-agent@pve` token, the GitHub MCP token) and the machine user's token. |
 | **4. Dry-run output** | your key, the `ai-agent` key | GitHub artifacts, 7 days | — | The full output of a dry-run (`plan.txt.age`, `check.txt.age`). Encrypted as defense in depth: it should hold no secret, but a value someone forgot to mark `sensitive` or `no_log` would show up in it. |
 
@@ -480,17 +480,17 @@ them from the repo root, where the repo's `.sops.yaml` applies; each opens
 your editor on a new file and is encrypted on save, as above:
 
 ```bash
-sops ansible/inventory/group_vars/caddy.sops.yaml
-sops ansible/inventory/group_vars/pihole.sops.yaml
-
-sops filestatus ansible/inventory/group_vars/caddy.sops.yaml    # {"encrypted":true}
-sops filestatus ansible/inventory/group_vars/pihole.sops.yaml   # {"encrypted":true}
+for g in caddy pihole dns github_runner; do
+  sops ansible/inventory/group_vars/$g.sops.yaml
+  sops filestatus ansible/inventory/group_vars/$g.sops.yaml   # {"encrypted":true}
+done
 ```
 
 `caddy.sops.yaml`:
 
 ```yaml
 cloudflare_api_token: <Cloudflare token from step 3>
+elastic_agent_enrollment_token: <the core policy's enrollment token>
 ```
 
 `pihole.sops.yaml`:
@@ -498,6 +498,28 @@ cloudflare_api_token: <Cloudflare token from step 3>
 ```yaml
 pihole_webpassword: <Pihole admin password>
 ```
+
+`dns.sops.yaml`:
+
+```yaml
+elastic_agent_enrollment_token: <the core policy's enrollment token>
+```
+
+`github_runner.sops.yaml`:
+
+```yaml
+elastic_agent_enrollment_token: <the core-runner policy's enrollment token>
+```
+
+The enrollment tokens are `homelab-proxmox-platform`'s Fleet agent
+policies' own: in Kibana, **Fleet -> Enrollment tokens**, copy the secret
+of *Homelab core* (policy `core`, for `proxy` and `server01`, so the same
+value in `caddy.sops.yaml` and `dns.sops.yaml`) and *Homelab core runner*
+(policy `core-runner`). Each enrolls an agent into its policy, which hands
+it a Logstash client certificate: keep them as secret as a password. A
+token is used only the first time a host's agent enrolls; to rotate one,
+revoke it in Fleet, create a new one for the same policy and replace the
+value here. Agents already enrolled keep working.
 
 The `community.sops` vars plugin (`ansible/ansible.cfg`) decrypts them only
 while a task runs (`vars_stage = task`), so `ansible-lint`,
@@ -645,14 +667,12 @@ then `cd ~/.secrets && SOPS_AGE_KEY_FILE=~/.config/sops/age/bcochofel.txt sops u
 ### 7.3. The agent's key opens nothing else
 
 ```bash
-for f in ~/.secrets/homelab.yaml \
-         ansible/inventory/group_vars/caddy.sops.yaml \
-         ansible/inventory/group_vars/pihole.sops.yaml; do
+for f in ~/.secrets/homelab.yaml ansible/inventory/group_vars/*.sops.yaml; do
   as_agent sops -d "$f" >/dev/null 2>&1 && echo "OPENS (bad): $f" || echo "refused (good): $f"
 done
 ```
 
-**Expect:** `refused (good)` for all three. (Run without the
+**Expect:** `refused (good)` for every file. (Run without the
 `>/dev/null 2>&1`, SOPS shows why: it lists the public `age1...` keys the
 file is encrypted to, none of which it holds, and ends with *Failed to get
 the data key required to decrypt the SOPS file*. Nothing secret is
@@ -716,6 +736,7 @@ and checks that the values with no API to call are set:
 | `bcochofel-ai-agent` PAT | `ai-agent-git.yaml` (`ai-agent` key only) | read the user, then each homelab repo | the login is `bcochofel-ai-agent`; `push` true and `admin` false on each repo |
 | Cloudflare token | `caddy.sops.yaml` | look up zone `bcochofel.com` | `200` |
 | `PKR_VAR_password_hash`, `TF_VAR_cipassword`, `pihole_webpassword` | | set and not empty | `ok` |
+| `elastic_agent_enrollment_token` | `caddy`, `dns` and `github_runner.sops.yaml` | set and not empty (enrolling is the only call that uses one, and it registers an agent) | `ok` |
 
 Secrets reach `curl` through standard input (`-H @-`), never as
 command-line arguments, so they don't show up in the process list. A

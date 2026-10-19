@@ -1,0 +1,136 @@
+---
+# Installs Elastic Agent and enrolls it into its group's Fleet policy, once:
+# an enrolled agent is never enrolled again (`--force` on a managed agent
+# registers a duplicate and leaves the old one offline in Fleet). Moving it
+# to another policy is done in Fleet. Fleet is homelab-proxmox-platform's,
+# an external dependency: a failed enrollment doesn't stop the playbook;
+# 99-healthcheck.yml reports an agent that isn't connected.
+
+- name: Create the directory for the agent's CA
+  ansible.builtin.file:
+    path: "{{ elastic_agent_ca | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Install the platform's CA (Fleet Server's certificate)
+  ansible.builtin.copy:
+    src: "{{ elastic_agent_ca_src }}"
+    dest: "{{ elastic_agent_ca }}"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
+# -- What's there now -------------------------------------------------------------
+
+- name: Check whether the agent is installed
+  ansible.builtin.stat:
+    path: "{{ elastic_agent_binary }}"
+  become: true
+  register: _agent_binary
+
+# `status` talks to the running daemon: started first, so a stopped agent
+# isn't mistaken for one that isn't enrolled.
+- name: Start the installed agent
+  ansible.builtin.systemd_service:
+    name: elastic-agent
+    state: started
+    enabled: true
+  become: true
+  when: _agent_binary.stat.exists
+
+- name: Read the installed agent's status
+  ansible.builtin.command:
+    argv: ["{{ elastic_agent_binary }}", status, --output, json]
+  become: true
+  register: _agent_status
+  check_mode: false # read-only: prints the agent's status
+  changed_when: false
+  failed_when: false
+  until: _agent_status.rc == 0
+  retries: 12
+  delay: 5
+  when: _agent_binary.stat.exists
+
+# Enrolled is info.is_managed. An installed agent whose status can't be
+# read is left alone: enrolling it could register a duplicate. Reported,
+# not fatal, so this host's other health checks still run.
+- name: Decide what to do
+  ansible.builtin.set_fact:
+    _agent_install: "{{ not _agent_binary.stat.exists }}"
+    _agent_enroll: >-
+      {{ not _agent_binary.stat.exists
+         or (_agent_status.rc == 0
+             and not ((_agent_status.stdout | from_json).info.is_managed | default(false))) }}
+
+- name: Report an installed agent whose status can't be read
+  ansible.builtin.fail:
+    msg: >-
+      {{ elastic_agent_binary }} is installed but `elastic-agent status`
+      fails (rc {{ _agent_status.rc }}): look at `journalctl -u
+      elastic-agent` on {{ inventory_hostname }}. Not enrolled again, so
+      Fleet gets no duplicate.
+  when: _agent_binary.stat.exists and _agent_status.rc != 0
+  ignore_errors: true
+
+# -- Install and/or enroll ------------------------------------------------------------
+
+# Nothing to show in check mode: the tarball isn't downloaded, so nothing
+# can be verified or run.
+- name: Say what a real run does (check mode)
+  ansible.builtin.debug:
+    msg: >-
+      Would {{ 'install Elastic Agent ' ~ elastic_agent_version ~ ' and enroll it'
+      if _agent_install else 'enroll the installed agent' }} into Fleet policy
+      {{ elastic_agent_policy_id }}.
+  when: _agent_enroll and ansible_check_mode
+
+- name: Install and enroll into {{ elastic_agent_policy_id }}
+  when: _agent_enroll and not ansible_check_mode
+  block:
+    # Prints only its message, never the token, so its failure stays readable.
+    - name: Fail if the group's enrollment token isn't set
+      ansible.builtin.fail:
+        msg: >-
+          elastic_agent_enrollment_token is missing for {{ inventory_hostname }}:
+          copy policy {{ elastic_agent_policy_id }}'s token from Kibana (Fleet ->
+          Enrollment tokens) into its group's group_vars/<group>.sops.yaml, see
+          docs/CREDENTIALS.md.
+      when: elastic_agent_enrollment_token | default('') | length == 0
+
+    - name: Install the agent and enroll it
+      ansible.builtin.include_tasks: install.yml
+      when: _agent_install
+
+    # --force only skips the confirmation prompt: this agent isn't managed
+    # (is_managed false), so there's nothing in Fleet to duplicate. The
+    # token is on the command line for these few seconds: `enroll` has no
+    # file option for it.
+    - name: Enroll the installed agent
+      ansible.builtin.command:
+        argv:
+          - "{{ elastic_agent_binary }}"
+          - enroll
+          - --force
+          - --url={{ elastic_agent_fleet_url }}
+          - --certificate-authorities={{ elastic_agent_ca }}
+          - --enrollment-token={{ elastic_agent_enrollment_token }}
+      become: true
+      changed_when: true
+      ignore_errors: true # Fleet is external: 99-healthcheck.yml reports it
+      no_log: true
+      when: not _agent_install
+
+- name: Keep the agent running and enabled at boot
+  ansible.builtin.systemd_service:
+    name: elastic-agent
+    state: started
+    enabled: true
+  become: true
+  when: >-
+    _agent_binary.stat.exists
+    or (_agent_install_run is defined and _agent_install_run is not skipped
+        and _agent_install_run is succeeded)

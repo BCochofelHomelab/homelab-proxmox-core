@@ -235,7 +235,9 @@ on the node lists `TofuApply`'s privileges.
 2. **`~/.secrets/`** (step 5): `homelab.yaml` and `homelab-ro.yaml` (and
    `ai-agent-git.yaml` in stage 7), with `~/.secrets/.sops.yaml`.
 3. **The inventory secrets** (step 5), committed and encrypted:
-   `caddy.sops.yaml` and `pihole.sops.yaml`. Rebuilding with
+   `caddy.sops.yaml`, `pihole.sops.yaml`, `dns.sops.yaml` and
+   `github_runner.sops.yaml` (the Fleet enrollment tokens come from
+   `homelab-proxmox-platform`'s Kibana). Rebuilding with
    the same age keys, the committed files still open: nothing to redo.
 4. **`.claude/settings.json`** (step 6) points at
    `/home/bcochofel/.config/sops/age/ai-agent.txt`.
@@ -288,8 +290,10 @@ ready.*
 ## Stage 6. Network
 
 1. **The QNAP secondaries**, CoreDNS (`.3`) and Pi-hole (`.6`), the ISP
-   router's DNS setting and Home Assistant's proxy setting, all set up by
-   hand: [`EXTERNAL-DEPENDENCIES.md`](EXTERNAL-DEPENDENCIES.md).
+   router's DNS setting, Home Assistant's proxy setting and the Elastic
+   Agent on the Proxmox node `pve1` (once `homelab-proxmox-platform`'s
+   Fleet is up), all set up by hand:
+   [`EXTERNAL-DEPENDENCIES.md`](EXTERNAL-DEPENDENCIES.md).
 2. **DHCP** hands out the two Pi-holes, `192.168.68.5` and
    `192.168.68.6`, never a CoreDNS address next to them.
 
@@ -511,6 +515,9 @@ ssh ubuntu@runner01.homelab.bcochofel.com 'sudo systemctl restart "actions.runne
 - **Persistent, cleaned per job:** the runner empties each job's temp
   directory, and a root-owned job-completed hook empties its workspace.
   Every job gets `HOMELAB_DRY_RUN=1`, for `site.yml`'s guard.
+- **Elastic Agent:** enrolled by `site.yml` into Fleet policy
+  `core-runner`, the system integration only. It runs as root and adds
+  no user to any group; `check:runner` still passes.
 - **Watchdog:** a root-owned timer restarts the runner whenever it's idle,
   every 15 minutes, so its connection to GitHub never goes stale (above).
   Never during a job. `check:runner` checks the timer is active.
@@ -667,7 +674,7 @@ Level 1 first, then:
 | --- | --- | --- |
 | The machine user's token | *Organization settings → Personal access tokens → Active tokens* → revoke | A new token in `ai-agent-git.yaml` ([stage 7](#the-machine-user-and-its-token)) |
 | The `ai-agent` age key | Remove it from `~/.secrets/.sops.yaml` and `dry-run.yml`; `updatekeys` `homelab-ro.yaml` and `ai-agent-git.yaml` | Everything in those two files: the `ai-agent@pve` token, the read-only GitHub token, the machine user's token |
-| The `ci` age key | Delete `CI_AGE_KEY`; remove the `ci` recipient from `.sops.yaml` and `updatekeys` its files | Everything it could open: the Cloudflare token, the Pi-hole password, `ci@pve!plan`, the HCP team token, `cipassword`, the automation SSH key (and its public half on every host) |
+| The `ci` age key | Delete `CI_AGE_KEY`; remove the `ci` recipient from `.sops.yaml` and `updatekeys` its files | Everything it could open: the Cloudflare token, the Pi-hole password, the Fleet enrollment tokens (revoke them in Fleet too), `ci@pve!plan`, the HCP team token, `cipassword`, the automation SSH key (and its public half on every host) |
 | `runner01` | Treat it as compromised: destroy it and rebuild it from the template | The `ci` row |
 
 Afterwards: `mise run secrets:check`, `check:creds`, `check:boundary` and

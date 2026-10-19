@@ -1,0 +1,117 @@
+---
+# Installs Elastic Agent {{ elastic_agent_version }} from Elastic's tarball,
+# checked before it runs: the signature, made by Elastic's key (pinned by
+# fingerprint), then the SHA-512. `install` enrolls in the same command.
+# Everything is downloaded to a root-only directory, removed afterwards.
+
+- name: Install from the verified tarball
+  become: true
+  block:
+    - name: Create the download directory
+      ansible.builtin.file:
+        path: "{{ elastic_agent_download_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Download Elastic's signing key
+      ansible.builtin.get_url:
+        url: "{{ elastic_agent_key_url }}"
+        dest: "{{ elastic_agent_download_dir }}/elastic-key.asc"
+        mode: "0600"
+
+    # The primary keys' fingerprints, one per line: exactly one, the pinned
+    # one, so no other key is in the keyring the signature is checked with.
+    - name: Read the signing key's fingerprint
+      ansible.builtin.shell: >-
+        set -o pipefail &&
+        gpg --homedir {{ elastic_agent_download_dir }} --show-keys --with-colons
+        {{ elastic_agent_download_dir }}/elastic-key.asc
+        | awk -F: '/^pub:/ { pub = 1; next } pub && /^fpr:/ { print $10; pub = 0 }'
+      args:
+        executable: /bin/bash
+      register: _elastic_key_fpr
+      changed_when: false
+
+    - name: Fail unless it's Elastic's key, alone
+      ansible.builtin.assert:
+        that: _elastic_key_fpr.stdout_lines == [elastic_agent_key_fingerprint]
+        fail_msg: >-
+          The downloaded signing key's fingerprints are
+          {{ _elastic_key_fpr.stdout_lines }}, expected only
+          {{ elastic_agent_key_fingerprint }}.
+        quiet: true
+
+    - name: Make a keyring of Elastic's key
+      ansible.builtin.command:
+        argv:
+          - gpg
+          - --homedir
+          - "{{ elastic_agent_download_dir }}"
+          - --dearmor
+          - --yes
+          - --output
+          - "{{ elastic_agent_download_dir }}/elastic.gpg"
+          - "{{ elastic_agent_download_dir }}/elastic-key.asc"
+      changed_when: true
+
+    - name: Download the Elastic Agent tarball, its checksum and signature
+      ansible.builtin.get_url:
+        url: "{{ elastic_agent_url }}{{ item }}"
+        dest: "{{ elastic_agent_download_dir }}/{{ elastic_agent_name }}.tar.gz{{ item }}"
+        mode: "0600"
+      loop: ["", ".sha512", ".asc"]
+
+    # VALIDSIG's last field is the signing key's primary fingerprint.
+    - name: Verify the signature with Elastic's key
+      ansible.builtin.command:
+        argv:
+          - gpgv
+          - --status-fd
+          - "1"
+          - --keyring
+          - "{{ elastic_agent_download_dir }}/elastic.gpg"
+          - "{{ elastic_agent_download_dir }}/{{ elastic_agent_name }}.tar.gz.asc"
+          - "{{ elastic_agent_download_dir }}/{{ elastic_agent_name }}.tar.gz"
+      register: _agent_signature
+      changed_when: false
+      failed_when: >-
+        _agent_signature.rc != 0
+        or (_agent_signature.stdout_lines | select('match', '^\[GNUPG:\] VALIDSIG ')
+            | map('split') | map('last') | list) != [elastic_agent_key_fingerprint]
+
+    - name: Verify the checksum
+      ansible.builtin.command:
+        argv: [sha512sum, --check, --strict, "{{ elastic_agent_name }}.tar.gz.sha512"]
+        chdir: "{{ elastic_agent_download_dir }}"
+      changed_when: false
+
+    - name: Unpack the tarball
+      ansible.builtin.unarchive:
+        src: "{{ elastic_agent_download_dir }}/{{ elastic_agent_name }}.tar.gz"
+        dest: "{{ elastic_agent_download_dir }}"
+        remote_src: true
+
+    # Runs as root, the agent's default (not --unprivileged). The token is
+    # on the command line for these few seconds: `install` has no file
+    # option for it.
+    - name: Install the agent and enroll it into {{ elastic_agent_policy_id }}
+      ansible.builtin.command:
+        argv:
+          - "{{ elastic_agent_download_dir }}/{{ elastic_agent_name }}/elastic-agent"
+          - install
+          - --non-interactive
+          - --url={{ elastic_agent_fleet_url }}
+          - --certificate-authorities={{ elastic_agent_ca }}
+          - --enrollment-token={{ elastic_agent_enrollment_token }}
+      register: _agent_install_run
+      changed_when: true
+      ignore_errors: true # Fleet is external: 99-healthcheck.yml reports it
+      no_log: true
+
+  always:
+    - name: Remove the download directory
+      ansible.builtin.file:
+        path: "{{ elastic_agent_download_dir }}"
+        state: absent

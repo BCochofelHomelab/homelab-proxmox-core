@@ -2,7 +2,7 @@
 
 Services this repo relies on but doesn't deploy. You set each one up by
 hand, once, from the steps below. `ansible/playbooks/99-healthcheck.yml`
-checks all of them except the ISP router on every run: a dependency that isn't ready is reported (the
+checks all of them except the ISP router and `pve1`'s Elastic Agent on every run: a dependency that isn't ready is reported (the
 task shows as failed, then ignored) and listed in a summary at the end,
 but never stops the playbook.
 
@@ -14,6 +14,8 @@ but never stops the playbook.
 | QTS admin UI, Web Station | QNAP | `192.168.68.10` | Backends of `nas` and `www` | Nothing to configure |
 | Proxmox VE web UI | Proxmox | `192.168.68.20:8006` | Backend of `pve1` | Nothing to configure |
 | Kibana | `homelab-proxmox-platform`'s `kibana` VM | `192.168.68.33:5601` | Backend of `kibana` | [Kibana](#kibana) |
+| Fleet Server, Logstash | `homelab-proxmox-platform`'s `kibana` and `ingest` VMs | `192.168.68.33:8220`, `192.168.68.34:5044` | Where the hosts' Elastic Agents enroll and send their data | [Fleet Server](#fleet-server) |
+| Elastic Agent on `pve1` | Proxmox | `192.168.68.20` | Telemetry of the Proxmox node, not in the inventory | [Elastic Agent on pve1](#elastic-agent-on-pve1) |
 | ISP router | Vodafone Ultra Hub 7 | — | Internet access for the LAN, in front of the Deco | [ISP router](#isp-router) |
 
 Keep the fixed addresses out of the router's DHCP pool, or reserve them
@@ -372,6 +374,106 @@ curl -s -o /dev/null -w "%{http_code}\n" --cacert ansible/files/trust/platform-e
 # ...and through Caddy, with a valid certificate (302 to the login page, not 502)
 curl -s -o /dev/null -w "%{http_code}\n" https://kibana.homelab.bcochofel.com
 ```
+
+## Fleet Server
+
+`proxy`, `server01` and `runner01` run an Elastic Agent
+(`ansible/roles/elastic_agent`), enrolled into `homelab-proxmox-platform`'s
+Fleet: policy `core` for the first two, `core-runner` for `runner01`. Each
+agent connects to Fleet Server at `https://192.168.68.33:8220`, whose
+certificate is signed by the platform's CA (the same
+`ansible/files/trust/platform-elastic.crt` as Kibana, copied to
+`/etc/elastic-agent/ca.crt`), and sends its data to Logstash at
+`192.168.68.34:5044` over mTLS, with a client certificate Fleet hands it
+in the policy. Nothing else is configured on the hosts.
+
+The platform owns the policies and their integrations. This repo holds
+only each policy's enrollment token (`elastic_agent_enrollment_token` in
+`group_vars/<group>.sops.yaml`, [`CREDENTIALS.md`](CREDENTIALS.md) step 5).
+An agent is enrolled once; to move a host to another policy, reassign its
+agent in Fleet. Upgrades are done in Fleet too (*Upgrade agent*), never
+past the stack's version: `elastic_agent_version` only sets what a new
+host installs.
+
+`99-healthcheck.yml` reports an agent that isn't installed, isn't
+enrolled, isn't connected to Fleet or isn't healthy. Enrollment needs Fleet
+Server: if it was down, the next `mise run ansible:site` enrolls the
+agent. When the platform rotates its CA, replace
+`platform-elastic.crt` as for [Kibana](#kibana); `ansible:site` copies it
+to each host.
+
+```bash
+# On a host: the agent is enrolled, connected to Fleet and healthy
+sudo elastic-agent status
+#   expect: fleet ... (HEALTHY) Connected, elastic-agent ... (HEALTHY) Running
+```
+
+## Elastic Agent on pve1
+
+The Proxmox node isn't in the Ansible inventory, so its agent is installed
+once by hand, the same way the role does it, into Fleet policy `proxmox`
+(the platform's *Proxmox* enrollment token). **Never run it on a node whose
+agent is already enrolled:** check first, an enrolled agent shows Fleet
+*Connected*. Enrolling again registers a duplicate in Fleet.
+
+```bash
+# On pve1, as root: is there an agent already?
+elastic-agent status    # "command not found": go on. Fleet "Connected": stop here.
+```
+
+From your clone, copy the platform's CA to the node:
+
+```bash
+ssh root@192.168.68.20 install -d -m 0755 /etc/elastic-agent
+scp ansible/files/trust/platform-elastic.crt root@192.168.68.20:/etc/elastic-agent/ca.crt
+```
+
+Then on `pve1`, as root, download the tarball and check it before it runs:
+Elastic's signing key must be the one key with fingerprint
+`46095ACC8548582C1A2699A9D27D666CD88E42B4`, the signature must be that
+key's, then the checksum must match. Use the version in
+`ansible/roles/elastic_agent/defaults/main.yml` (`elastic_agent_version`):
+never newer than the platform's stack.
+
+```bash
+n=elastic-agent-9.5.4-linux-x86_64
+d=$(mktemp -d) && chmod 700 "$d" && cd "$d"
+u=https://artifacts.elastic.co/downloads/beats/elastic-agent/$n.tar.gz
+curl -fsSL -o elastic-key.asc https://artifacts.elastic.co/GPG-KEY-elasticsearch
+curl -fsSLO "$u" && curl -fsSLO "$u.sha512" && curl -fsSLO "$u.asc"
+
+gpg --homedir "$d" --show-keys --with-colons elastic-key.asc |
+  awk -F: '/^pub:/ { pub = 1; next } pub && /^fpr:/ { print $10; pub = 0 }'
+#   expect exactly one line: 46095ACC8548582C1A2699A9D27D666CD88E42B4
+gpg --homedir "$d" --dearmor --output elastic.gpg elastic-key.asc
+gpgv --status-fd 1 --keyring "$d/elastic.gpg" "$n.tar.gz.asc" "$n.tar.gz" | grep VALIDSIG
+#   expect: one VALIDSIG line, ending in 46095ACC8548582C1A2699A9D27D666CD88E42B4
+sha512sum --check --strict "$n.tar.gz.sha512"
+#   expect: elastic-agent-9.5.4-linux-x86_64.tar.gz: OK
+tar xzf "$n.tar.gz"
+```
+
+Only if all three checks pass, install and enroll it. `read -rs` keeps the
+token off the screen and out of the shell history:
+
+```bash
+read -rsp "Proxmox policy's enrollment token: " token; echo
+"./$n/elastic-agent" install --non-interactive \
+  --url=https://192.168.68.33:8220 \
+  --certificate-authorities=/etc/elastic-agent/ca.crt \
+  --enrollment-token="$token"
+unset token; cd / && rm -rf "$d"
+```
+
+```bash
+# On pve1: enrolled, connected and healthy
+elastic-agent status
+#   expect: fleet ... (HEALTHY) Connected, elastic-agent ... (HEALTHY) Running
+```
+
+The health check doesn't reach `pve1`: look for it in Kibana, **Fleet ->
+Agents**, policy `proxmox`. When the platform rotates its CA, copy the new
+`platform-elastic.crt` to `/etc/elastic-agent/ca.crt` here too.
 
 ## ISP router
 
