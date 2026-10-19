@@ -89,7 +89,7 @@ and the variable gets no default and `sensitive = true`.
 | Tier | Readable by | Where | Committed? | Holds |
 | --- | --- | --- | --- | --- |
 | **0. Public** | anyone | the repo, plain text | yes | Every non-secret input (`variables.tf`/`variables.pkr.hcl` defaults: IPs, sizes, the SSH and age **public** keys), `.sops.yaml`. |
-| **1. Yours only** | your key | `~/.secrets/homelab.yaml` | no | What changes infrastructure: the Packer and `terraform` Proxmox tokens, your HCP token, `cipassword`, the template's password hash. Also the platform's read-only `inventory` token, which only your Ansible runs use. |
+| **1. Yours only** | your key | `~/.secrets/homelab.yaml` | no | What changes infrastructure: the Packer and `terraform` Proxmox tokens, your HCP token, `cipassword`, the template's password hash. Also the platform's read-only `inventory` token, which only your Ansible runs use, and its OpenTofu's Elastic API key (`ELASTICSEARCH_API_KEY`, scoped, not `superuser`). |
 | **2. You + CI** | your key, the `ci` key | `ci/`, `ansible/inventory/group_vars/*.sops.yaml` | yes, encrypted | What the dry-run runner needs: `ci@pve!plan`, the HCP team token, `cipassword`, the automation SSH key, and the inventory secrets (Cloudflare token, Pi-hole password, Fleet enrollment tokens). |
 | **3. You + AI agent** | your key, the `ai-agent` key | `~/.secrets/homelab-ro.yaml`, `~/.secrets/ai-agent-git.yaml` | no | Read-only credentials (the `ai-agent@pve` token, the GitHub MCP token) and the machine user's token. |
 | **4. Dry-run output** | your key, the `ai-agent` key | GitHub artifacts, 7 days | — | The full output of a dry-run (`plan.txt.age`, `check.txt.age`). Encrypted as defense in depth: it should hold no secret, but a value someone forgot to mark `sensitive` or `no_log` would show up in it. |
@@ -383,6 +383,8 @@ TF_VAR_cipassword: "<password for the cloud-init user on cloned VMs>"
 TF_TOKEN_app_terraform_io: "<your HCP user token, step 2>"
 # homelab-proxmox-platform's Ansible inventory (its mise run ansible:site)
 PROXMOX_TOKEN_SECRET: "<the secret only, printed by pveum, step 1>"
+# homelab-proxmox-platform's OpenTofu, the Elastic stacks (its mise run tofu:*)
+ELASTICSEARCH_API_KEY: "<the encoded value, homelab-proxmox-platform docs/ELASTIC-API-KEY.md>"
 ```
 
 `PROXMOX_TOKEN_SECRET` holds **only the secret**, the UUID `pveum`
@@ -391,6 +393,11 @@ prints, unlike `TF_VAR_proxmox_api_token`, which holds the whole
 and token id, and the plugin puts the three together as
 `inventory@pve!ansible=<secret>`. A whole token in this key would repeat
 them, and Proxmox answers `401`.
+
+`ELASTICSEARCH_API_KEY` holds the key's **`encoded`** field from
+`POST /_security/api_key`, not its `id` or `api_key`; how it's created,
+scoped and rotated is `homelab-proxmox-platform`'s
+[`docs/ELASTIC-API-KEY.md`](https://github.com/BCochofelHomelab/homelab-proxmox-platform/blob/main/docs/ELASTIC-API-KEY.md).
 
 `~/.secrets/homelab-ro.yaml` (read-only, your key and the `ai-agent` key):
 
@@ -731,6 +738,7 @@ and checks that the values with no API to call are set:
 | `terraform@pve!terraform` | `homelab.yaml` | Proxmox `GET /version` | `200` |
 | HCP token | `homelab.yaml` | read workspace `homelab-bcochofel-com/core-caddy` | `200` |
 | `inventory@pve!ansible` | `homelab.yaml` (`PROXMOX_TOKEN_SECRET`) | Proxmox `GET /version` | `200`, or `ok ... not set yet` before the platform's setup |
+| `ELASTICSEARCH_API_KEY` | `homelab.yaml` | Elasticsearch `GET /_security/_authenticate` (`es-01`), its certificate verified against the platform's CA | `200`, or `ok ... not set yet` before the platform's setup |
 | `ai-agent@pve!ai-agent` | `homelab-ro.yaml` (`ai-agent` key only) | Proxmox `GET /version` | `200` |
 | GitHub PAT | `homelab-ro.yaml` (`ai-agent` key only) | read each homelab repo | `200` |
 | `bcochofel-ai-agent` PAT | `ai-agent-git.yaml` (`ai-agent` key only) | read the user, then each homelab repo | the login is `bcochofel-ai-agent`; `push` true and `admin` false on each repo |
@@ -745,6 +753,10 @@ return one; it never contains the credential). If a line fails:
 
 - `401`: the credential is wrong or revoked: recreate it (steps 1–3, or
   step 8 for the PAT) and update the file with your key.
+- `401` from Elasticsearch: the key expired or was invalidated: rotate it
+  as `homelab-proxmox-platform`'s
+  [`docs/ELASTIC-API-KEY.md`](https://github.com/BCochofelHomelab/homelab-proxmox-platform/blob/main/docs/ELASTIC-API-KEY.md#rotating-it),
+  *Rotating it*, says. That procedure also re-keys the alert rules.
 - `403` or `404`: it authenticates but can't see that resource: check its
   ACL, team access, zone or repository access.
 - `400` from Cloudflare (*Invalid format for Authorization header*): the
@@ -752,6 +764,10 @@ return one; it never contains the credential). If a line fails:
   `caddy.sops.yaml` (exact key name, no quotes, spaces or `<...>` around
   the token).
 - `000`: the service wasn't reached: check the host and port values.
+  For Elasticsearch, also a certificate not signed by the platform's CA
+  (`ansible/files/trust/platform-elastic.crt`): the key is never sent
+  then. If the platform rotated its CA, replace that file
+  ([`EXTERNAL-DEPENDENCIES.md`](EXTERNAL-DEPENDENCIES.md#kibana)).
 
 ## 8. MCP servers for the AI agent
 
