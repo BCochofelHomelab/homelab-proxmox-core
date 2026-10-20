@@ -18,6 +18,8 @@ name: CI
 # there's nothing this trigger added that wasn't already checked pre-merge.
 on:
   pull_request:
+    # edited: a changed title is checked again (it becomes the squash commit).
+    types: [opened, synchronize, reopened, edited]
 
 permissions:
   contents: read
@@ -69,6 +71,17 @@ jobs:
         run: |
           mkdir -p /tmp/.cache/trivy
           trivy config --cache-dir /tmp/.cache/trivy --config .trivy.yaml terraform >/dev/null
+
+      - name: The pull request's title is a conventional commit
+        # Squash merges use it as the commit on main, the one semantic-release
+        # reads: the same commitlint rules as a local commit. The hook reads
+        # git's COMMIT_EDITMSG (commitlint --edit), so the title goes there.
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          msg="$(git rev-parse --git-dir)/COMMIT_EDITMSG"
+          printf '%s\n' "$PR_TITLE" > "$msg"
+          pre-commit run commitlint --hook-stage commit-msg --commit-msg-filename "$msg"
 
       - name: pre-commit (all files) + gitleaks (full history)
         env:
