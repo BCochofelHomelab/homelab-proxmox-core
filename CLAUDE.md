@@ -274,6 +274,14 @@ toolchain, Docker Compose service style.
   would put the `ci` key on it via `01-ci-ssh-key.yml`): its agent
   (policy `proxmox`) is installed by hand from
   `docs/EXTERNAL-DEPENDENCIES.md`, with the same checks.
+- **Release rules (as `homelab-proxmox-platform`'s):** squash merges
+  use the PR title alone as the commit on `main`, the only text
+  semantic-release reads, so the title carries the highest type of its
+  commits (`feat` > `fix` > the rest), lowercase; a breaking change goes
+  in the title (`feat!:`), since commit bodies don't reach `main`.
+  commitlint's `type-case`/`type-enum` are errors (`2`), never warnings:
+  `Fix:` or a misspelled type skips the release silently. CI checks the
+  title through the commitlint hook.
 - **Terraform and Ansible are decoupled** — no `local-exec` chaining. Run
   `tofu apply` (from `terraform/`) then `ansible-playbook
   playbooks/site.yml` (from `ansible/`) as two separate, explicit commands.
