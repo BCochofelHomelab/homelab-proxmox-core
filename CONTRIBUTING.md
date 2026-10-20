@@ -127,7 +127,9 @@ change.
 Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/),
 checked by commitlint ([`commitlint.config.js`](commitlint.config.js)):
 `<type>(optional scope): <subject>`, with type `feat`, `fix`, `docs`,
-`style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore` or `revert`.
+`style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore` or `revert`,
+lowercase: anything else is refused, `Fix:` included (the release reads
+only `fix` and `feat`, so a capital silently skips the release).
 `git commit` without `-m` opens the repo's template.
 
 [semantic-release](https://semantic-release.gitbook.io/)
@@ -140,6 +142,17 @@ checked by commitlint ([`commitlint.config.js`](commitlint.config.js)):
 
 It publishes a GitHub Release with generated notes and a tag, with the
 workflow's own token: no `CHANGELOG.md`, nothing pushed to `main`.
+
+Pull requests are squash-merged, with the pull request's title as the
+whole commit (single-commit pull requests too): that title is the only
+thing semantic-release reads, so:
+
+- **The title takes the highest type of its commits, lowercase:** `feat`
+  if any commit is a feature, else `fix` if any is a fix, else the rest.
+  A pull request titled `refactor:` that adds a feature releases nothing.
+- **A breaking change goes in the title** (`feat!:`): commit bodies,
+  `BREAKING CHANGE:` footers included, don't reach `main`.
+- CI checks the title with the same commitlint rules.
 
 ## Checks
 

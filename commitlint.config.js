@@ -1,8 +1,9 @@
 module.exports = {
   extends: ['@commitlint/config-conventional'],
   rules: {
-    // ✅ Type must be one of these, but warning level only
-    'type-enum': [1, 'always', [
+    // ✅ Type must be one of these, lowercase: errors, since the release
+    // reads only lowercase fix/feat and anything else skips it silently
+    'type-enum': [2, 'always', [
       'feat', 'fix', 'docs', 'style', 'refactor', 'perf',
       'test', 'build', 'ci', 'chore', 'revert'
     ]],
@@ -30,8 +31,8 @@ module.exports = {
     'body-leading-blank': [1, 'always'],
     'footer-leading-blank': [1, 'always'],
 
-    // ✅ Type casing relaxed
-    'type-case': [1, 'always', 'lower-case'],
+    // ✅ Type must be lowercase (`Fix:` releases nothing)
+    'type-case': [2, 'always', 'lower-case'],
     'type-empty': [2, 'never'],
   },
 };
